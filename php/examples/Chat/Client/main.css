@@ -1,0 +1,138 @@
+header, section, footer {
+    background: #666; 
+    color: #333;
+    display: flex;
+    position: absolute;
+}
+
+/**
+ * Header
+ */
+header {
+    color: #FFF; 
+    flex-direction: column;
+    height: 40px;
+    left: 0; 
+    right: 0;
+    top: 0 
+}
+
+header>h1, header>h2 {
+    flex: 1;
+    text-align: center;
+    font-size: 16px;
+    line-height: 20px;
+    margin: 0;
+    padding: 0 20px;
+    text-shadow: 1px 1px #222
+}
+
+header>h2 {
+    font-size: 12px;
+    text-align: left
+}
+
+/**
+ * Room
+ */
+section {
+    background: #EFEFEF; 
+    bottom: 60px;
+    border: 0 solid #333;
+    border-width: 1px 0;
+    left: 0;
+    right: 0;  
+    top: 40px
+}
+
+#room {
+    flex: 5;
+    overflow-y: auto;
+    overflow-x: hidden
+}
+
+#room>div {
+    font-size: 12px;
+    line-height: 20px;
+    padding: 0 5px;
+    word-wrap: break-word;
+}
+
+#room>div.event>.msg {
+    font-weight: 700
+}
+
+#room>div>.time {
+    color: #999;
+    float: left; 
+    font-size: 0.9em;
+    line-height: 20px;
+    margin-right: 10px;
+    white-space: nowrap
+}
+
+#room>div>.user {
+    color: #00B;
+    float: left;
+    margin-right: 5px;
+    white-space: nowrap
+}
+
+#room>div>.msg {
+    display: block;
+    text-align: justify 
+}
+
+/**
+ * Contact List
+ */
+aside {
+    border-left: 1px solid #333;
+    flex: 1
+}
+
+aside>h3 {
+    border-bottom: 1px solid #333; 
+    font-size: 15px;
+    margin: 0px;
+    padding: 5px
+}
+
+aside>ul {
+    margin: 0;
+    padding: 0
+}
+
+aside>ul>li {
+    line-height: 28px;
+    list-style: none;
+    margin: 0;
+    padding: 0 5px
+}
+
+aside>ul>li.me {
+    font-weight: 700
+}
+
+aside>ul>li:hover {
+    background: #CCC
+}
+
+/**
+ * Send zone
+ */
+footer {
+    bottom: 0;
+    height: 60px;
+    left: 0; 
+    right: 0
+}
+
+footer textarea {
+    border: 1px solid #333;
+    border-radius: 5px;
+    flex: 1;
+    height: 52px;
+    margin: 3px;
+    padding: 3px
+}
