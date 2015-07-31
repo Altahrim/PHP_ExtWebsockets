@@ -11,11 +11,11 @@ PHP_ARG_WITH([libwebsockets-dir], [],
 
 
 if test "$PHP_WEBSOCKET" != "no"; then
+	SEARCH_FOR="/include/libwebsockets.h"
 	if test -r $PHP_LIBWEBSOCKETS_DIR/$SEARCH_FOR; then
 		LIBWEBSOCKETS_DIR=$PHP_LIBWEBSOCKETS_DIR
 	else
-		SEARCH_PATH="/usr/local /usr"
-		SEARCH_FOR="/include/libwebsockets.h"
+		SEARCH_PATH="/usr/local /usr ../deps/libwebsockets"
 		AC_MSG_CHECKING([for libwebsockets files in default path])
 		for i in $SEARCH_PATH; do
 			if test -r $i/$SEARCH_FOR; then
