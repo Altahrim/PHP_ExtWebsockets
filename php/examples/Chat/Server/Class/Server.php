@@ -28,6 +28,15 @@ class Server
     private $history = [];
 
     /**
+     * Smileys (builded at construct)
+     * @var array
+     */
+    private $smileys = [
+        '☺' => [':)', ':-)', '=)'],
+        '☹' => [':(', ':-(', '=(']
+    ];
+
+    /**
      * Constructor
      */
     public function __construct()
@@ -37,6 +46,15 @@ class Server
         $this->server->onClientAccept([$this, 'onAccept']);
         $this->server->onClose([$this, 'onClose']);
         $this->server->onClientData([$this, 'onData']);
+
+        // Build smileys array
+        $smileys = [];
+        foreach ($this->smileys as $smiley => $strings) {
+            foreach ($strings as $str) {
+                $smiley[$str] = $smiley;
+            }
+        }
+        $this->smileys = $smileys;
     }
 
     public function onAccept(\WebSocket\Server $serv, \WebSocket\Connection $conn) {
@@ -90,7 +108,9 @@ class Server
 
         $continue = true;
 
+        $handled = false;
         if ($message[0] === '/') {
+            $handled = true;
             $cmd = explode (' ', $message, 2);
             switch ($cmd[0]) {
                 case '/shutdown':
@@ -139,15 +159,48 @@ class Server
                     $serv->broadcast($msg);
                     $this->history[] = [$time, $message];
                     break;
+                case '/quote':
+                case '/code':
+                    $handled = false;
+                    break;
                 default:
                     $msg = $this->buildMessage('alert', [
                         'result' => 'Commande inconnue'
                     ], $time, false);
                     $conn->sendJson($msg);
             }
-        } else {
+        }
+
+        // Seems to be a normal message
+        if (true !== $handled) {
             $message = strip_tags($message);
+
             if (!empty(trim($message))) {
+                // Special /quote
+                $parts   = explode('/quote', $message);
+                $message = array_shift($parts);
+                foreach ($parts as $part) {
+                    $message .= '<quote>' . trim($part) . '</quote>';
+                }
+
+                // Special /code
+                $parts   = explode('/code', $message);
+                $message = array_shift($parts);
+                foreach ($parts as $part) {
+                    $class = '';
+                    if (preg_match('/-([0-9a-z])/i', $part, $matches)) {
+                        $language = ' class="language-' . strtolower($matches[1]) . '"';
+                        $part     = substr($part, strlen($language) + 1);
+                        if ($language === 'php') {
+                            $part = highlight_string($part, true);
+                        }
+                    }
+                    $message .= '<code' . $class . '>' . trim($part) . '</code>';
+                }
+
+                // Smileys
+                $message = strtr($message, $this->smileys);
+
                 $message = [
                     'uid' => $conn->getUid(),
                     'msg' => nl2br($message)

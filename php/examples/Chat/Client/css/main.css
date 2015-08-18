@@ -1,0 +1,225 @@
+@font-face {
+    font-family: 'Open Sans';
+    font-style: normal;
+    font-weight: 400;
+    src: local('Open Sans'), local('OpenSans'), url(https://fonts.gstatic.com/s/opensans/v13/cJZKeOuBrn4kERxqtaUH3VtXRa8TVwTICgirnJhmVJw.woff2) format('woff2'), url(https://fonts.gstatic.com/s/opensans/v13/cJZKeOuBrn4kERxqtaUH3T8E0i7KZn-EPnyo3HZu7kw.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Inconsolata';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Inconsolata'), url(https://fonts.gstatic.com/s/inconsolata/v11/BjAYBlHtW3CJxDcjzrnZCI4P5ICox8Kq3LLUNMylGO4.woff2) format('woff2'), url(https://fonts.gstatic.com/s/inconsolata/v11/BjAYBlHtW3CJxDcjzrnZCIbN6UDyHWBl620a-IRfuBk.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Architects Daughter';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Architects Daughter'), local('ArchitectsDaughter'), url(https://fonts.gstatic.com/s/architectsdaughter/v6/RXTgOOQ9AAtaVOHxx0IUBM3t7GjCYufj5TXV5VnA2p8.woff2) format('woff2'), url(https://fonts.gstatic.com/s/architectsdaughter/v6/RXTgOOQ9AAtaVOHxx0IUBOkI_DLF4EgbZt3mhU8gQFo.woff) format('woff');
+}
+
+/**
+ * General
+ */
+html {
+    background: #2E3436;
+    color: #FFF;
+    font-family: 'Open Sans', sans-serif;
+    text-rendering: optimizelegibility
+}
+
+header, section, footer {
+    display: flex;
+    position: absolute
+}
+
+/**
+ * Header
+ */
+header {
+    color: #FFF;
+    flex-direction: column;
+    left: 0;
+    right: 0;
+    top: 0 
+}
+
+header>h1, header>h2 {
+    font-size: 16px;
+    line-height: 26px;
+    margin: 0;
+    padding: 0 20px;
+    text-align: center;
+    text-shadow: 1px 1px #222
+}
+
+header>h1 {
+    box-shadow: 0 0 3px 1px #000
+}
+
+header>h2 {
+    font-size: 12px;
+    line-height: 30px;
+    margin-top: 2px;
+    text-align: left
+}
+
+/**
+ * Room
+ */
+section {
+    bottom: 66px;
+    border: 0 solid #333;
+    border-width: 1px 0;
+    left: 0;
+    padding: 0;
+    right: 0;
+    top: 58px
+}
+
+#room {
+    background: #EEE;
+    border-radius: 5px;
+    color: #333;
+    flex: 5;
+    margin: 0 0 0 3px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    text-align: justify 
+}
+
+#room>div {
+    font-size: 12px;
+    line-height: 20px;
+    margin: 0 3px;
+    padding: 2px;
+    word-wrap: break-word
+}
+
+#room>div + div {
+    border-top: 1px dotted #F0530F
+}
+
+#room>div>.time {
+    color: #999;
+    float: left;
+    font-size: 0.9em;
+    margin-right: 10px;
+    white-space: nowrap
+}
+
+#room>div>.user {
+    color: #00B;
+    float: left;
+    margin-right: 5px;
+    white-space: nowrap
+}
+
+#room>div>.msg {
+    clear: left;
+    display: block
+}
+
+#room>div.event>.msg {
+    clear: none;
+    font-weight: 700
+}
+
+/**
+ * Contact List
+ */
+aside {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    margin: -20px 0 0 0
+}
+
+aside>h3 {
+    display: block;
+    font-size: 15px;
+    line-height: 20px;
+    margin: 0px;
+    padding: 0 5px
+}
+
+aside>ul {
+    flex: 1;
+    margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 0
+}
+
+aside>ul>li {
+    line-height: 28px;
+    list-style: none;
+    margin: 0;
+    padding: 0 10px
+}
+
+aside>ul>li.me {
+    font-weight: 700
+}
+
+aside>ul>li:hover {
+    background: #F0530F
+}
+
+/**
+ * Send zone
+ */
+footer {
+    align-items: center;
+    background: #EEE;
+    border: 1px solid #333;
+    border-radius: 5px;
+    bottom: 3px;
+    height: 60px;
+    left: 3px;
+    right: 3px
+}
+
+footer textarea {
+    background: none;
+    border: none;
+    color: #333;
+    height: 100%;
+    padding: 3px;
+    resize: none;
+    flex: 1
+}
+
+footer>a {
+    background: #3BBADC;
+    border: #3BBADC;
+    border-radius: 5px;
+    color: #FFF;
+    line-height: 36px;
+    margin: 0 15px;
+    padding: 0 20px;
+    text-decoration: none
+}
+
+footer>a:hover {
+    background: #68C5DE
+}
+
+/**
+ * Messages
+ */
+code, quote {
+    background: #FFF;
+    display: block;
+    margin: 2px;
+    padding: 2px
+}
+
+code {
+    font-family: 'Inconsolata', monospace;
+}
+
+quote {
+    font-family: 'Architects Daughter', cursive;
+}
