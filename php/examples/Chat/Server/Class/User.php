@@ -15,7 +15,7 @@ class User
      */
     private $username;
 
-    const USERNAME_MAX_LENGTH = 120;
+    const USERNAME_MAX_LENGTH = 50;
 
     private static $usernames = [];
 
@@ -47,15 +47,21 @@ class User
     {
         $this->unsetUsername();
 
-        $this->username = htmlspecialchars($username);
-        $this->username = trim($username);
-        if (strlen($this->username > self::USERNAME_MAX_LENGTH)) {
-            $this->username = substr($this->username, 0, self::USERNAME_MAX_LENGTH);
-            $this->username = rtrim($this->username);
+        $username = preg_replace('/[\s]+/u', ' ', $username);
+        $username = trim($username);
+        $username = htmlspecialchars($username);
+        if (mb_strlen($username) > self::USERNAME_MAX_LENGTH) {
+            $username = mb_substr($username, 0, self::USERNAME_MAX_LENGTH);
+            $username = rtrim($username);
         }
 
+        $this->username = $username;
+
+        $suffix = '';
         while (isset(self::$usernames[$this->username])) {
-            $this->username .= rand(0, 9);
+            $username = mb_substr($username, 0, -1);
+            $suffix  .= rand(0, 9);
+            $this->username = $username . $suffix;
         }
         self::$usernames[$this->username] = true;
     }
