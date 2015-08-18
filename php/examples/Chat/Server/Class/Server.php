@@ -175,7 +175,7 @@ class Server
         if (true !== $handled) {
             $message = strip_tags($message);
 
-            if (!empty(trim($message))) {
+            if (strlen(trim($message)) >= 1) {
                 // Special /quote
                 $parts   = explode('/quote', $message);
                 $message = array_shift($parts);
