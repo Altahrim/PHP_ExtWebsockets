@@ -51,7 +51,7 @@ class Server
         $smileys = [];
         foreach ($this->smileys as $smiley => $strings) {
             foreach ($strings as $str) {
-                $smiley[$str] = $smiley;
+                $smileys[$str] = $smiley;
             }
         }
         $this->smileys = $smileys;
@@ -159,51 +159,18 @@ class Server
                     $serv->broadcast($msg);
                     $this->history[] = [$time, $message];
                     break;
-                case '/quote':
-                case '/code':
+                default:
                     $handled = false;
                     break;
-                default:
-                    $msg = $this->buildMessage('alert', [
-                        'result' => 'Commande inconnue'
-                    ], $time, false);
-                    $conn->sendJson($msg);
             }
         }
 
         // Seems to be a normal message
         if (true !== $handled) {
-            $message = strip_tags($message);
-
             if (strlen(trim($message)) >= 1) {
-                // Special /quote
-                $parts   = explode('/quote', $message);
-                $message = array_shift($parts);
-                foreach ($parts as $part) {
-                    $message .= '<quote>' . trim($part) . '</quote>';
-                }
-
-                // Special /code
-                $parts   = explode('/code', $message);
-                $message = array_shift($parts);
-                foreach ($parts as $part) {
-                    $class = '';
-                    if (preg_match('/-([0-9a-z])/i', $part, $matches)) {
-                        $language = ' class="language-' . strtolower($matches[1]) . '"';
-                        $part     = substr($part, strlen($language) + 1);
-                        if ($language === 'php') {
-                            $part = highlight_string($part, true);
-                        }
-                    }
-                    $message .= '<code' . $class . '>' . trim($part) . '</code>';
-                }
-
-                // Smileys
-                $message = strtr($message, $this->smileys);
-
                 $message = [
                     'uid' => $conn->getUid(),
-                    'msg' => nl2br($message)
+                    'msg' => $this->formatMessage($message)
                 ];
                 $this->history[] = [$time, $message, $this->connections[$conn->getUid()]->getUsername()];
                 $msg = $this->buildMessage('msg', $message, $time);
@@ -240,5 +207,149 @@ class Server
             'data' => $data
         ];
         return $jsonEncode ? json_encode($msg, \JSON_UNESCAPED_SLASHES|\JSON_UNESCAPED_UNICODE) : $msg;
+    }
+
+    /**
+     * Handle basic formatting for message
+     *
+     * @param string $message
+     * @return string
+     */
+    protected function formatMessage($message) {
+        $parts = preg_split('#(?:(/quote|/code-?)|(/code-)([a-z0-9]+))\s+#ui', $message, null, PREG_SPLIT_DELIM_CAPTURE|PREG_SPLIT_NO_EMPTY);
+        $context  = null;
+        $message  = '';
+        $language = '';
+        while (null !== $part = array_shift($parts)) {
+            switch ($part) {
+                case '/code':
+                case '/code-':
+                    if (!empty($context)) {
+                        $message .= '</' . $context . '>';
+                    }
+                    $context  = 'code';
+                    if ('/code-' === $part) {
+                        $language = mb_strtolower($this->escape(array_shift($parts)));
+                        var_dump('New LG', $part, $language);
+                        $message .= '<code class="language-' . $language . '">';
+                    } else {
+                        $message .= '<code>';
+                    }
+                    break;
+                case '/quote':
+                    if (!empty($context)) {
+                        $message .= '</' . $context . '>';
+                    }
+                    $message .= '<blockquote>';
+                    $context = 'blockquote';
+                    break;
+                default:
+                    switch ($context) {
+                        case 'code':
+                            $part = $this->highlight($part, $language);
+                            break;
+                        default:
+                            $part = strip_tags($part);
+                            $part = strtr($part, $this->smileys);
+                            $part = $this->replaceColors($part, true);
+                            $part = $this->replaceLinks($part, true);
+                    }
+                    $message .= $part;
+                    break;
+            }
+        }
+
+        if (!empty($context)) {
+            $message .= '</' . $context . '>';
+        }
+
+        return $message;
+    }
+
+    /**
+     * Escape a string in oprder to safely display it
+     *
+     * @param string $str
+     * @return string
+     */
+    protected function escape($str) {
+        return htmlspecialchars($str, ENT_HTML5, 'UTF-8');
+    }
+
+    /**
+     * Highlight source for <code>
+     * Only handle PHP syntax (for now)
+     *
+     * @param string $str
+     * @param string $language
+     * @return string
+     */
+    protected function highlight($str, $language) {
+        if ('php' === $language) {
+            if (false === strpos($str, '<?php') && false === strpos($str, '<?=')) {
+                $str = "<?php\n" . $str;
+            }
+            return str_replace(['<code>', '</code>'], '', highlight_string($str, true));
+        }
+        return $this->escape($str);
+    }
+
+    /**
+     * Detect and replace link in $str
+     *
+     * @param string $str
+     * @param bool $displayImages If true, images will be displayed
+     */
+    protected function replaceLinks($str) {
+        $cb = function ($matches) {
+            $url = $matches[0];
+
+            // Detect Youtube
+            if (preg_match('#^https?://www\.youtube\.com/watch\?(?:.*?&)?v=([^&]+)#ui', $url, $matches)) {
+                return '<div class="embed"><iframe width="560" height="315" src="https://www.youtube.com/embed/' . $this->escape($matches[1]) . '" frameborder="0" allowfullscreen></iframe></div>';
+            }
+
+            $url = $this->escape($url);
+            $isImage = null;
+            // Detect image from extention
+            $ext = explode('?', $url, 2)[0];
+            $ext = explode('.', $ext);
+            $ext = array_pop($ext);
+            if (in_array($ext, ['jpg', 'jpeg', 'gif', 'png'], true)) {
+                $isImage = true;
+            }
+
+            // Detect image from Content-Type
+            if (null === $isImage) {
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [
+                    CURLOPT_NOBODY         => true,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_HEADER         => true,
+                    CURLOPT_RETURNTRANSFER => true
+                ]);
+                $res = curl_exec($ch);
+                $content = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+                if (in_array($ext, ['image/jpg', 'image/gif', 'image/png'], true)) {
+                    $isImage = true;
+                }
+            }
+
+            return $isImage
+                ? '<div class="embed"><a href="' . $url . '"><img src="' . $url . '" alt="' . $url . '"></a></div>'
+                : '<a href="' . $url . '">' . $url . '</a>';
+        };
+
+        return preg_replace_callback('#https?://[^\s]+#ui', $cb, $str);
+    }
+
+    /**
+     * Show a color when hexadecimal code is detected
+     *
+     * @param string $str
+     * @return string
+     */
+    protected function replaceColors($str) {
+        return preg_replace('@#[A-F0-9]{6}|#[A-F0-9]{3}@ui', '\\0<span class="color" style="background:\\0"></span>', $str);
     }
 }

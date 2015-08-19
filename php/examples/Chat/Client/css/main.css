@@ -1,22 +1,22 @@
 @font-face {
-    font-family: 'Open Sans';
+    font-family: "Open Sans";
     font-style: normal;
     font-weight: 400;
-    src: local('Open Sans'), local('OpenSans'), url(https://fonts.gstatic.com/s/opensans/v13/cJZKeOuBrn4kERxqtaUH3VtXRa8TVwTICgirnJhmVJw.woff2) format('woff2'), url(https://fonts.gstatic.com/s/opensans/v13/cJZKeOuBrn4kERxqtaUH3T8E0i7KZn-EPnyo3HZu7kw.woff) format('woff');
+    src: local("Open Sans"), local("OpenSans"), url(https://fonts.gstatic.com/s/opensans/v13/cJZKeOuBrn4kERxqtaUH3VtXRa8TVwTICgirnJhmVJw.woff2) format("woff2"), url(https://fonts.gstatic.com/s/opensans/v13/cJZKeOuBrn4kERxqtaUH3T8E0i7KZn-EPnyo3HZu7kw.woff) format("woff");
 }
 
 @font-face {
-  font-family: 'Inconsolata';
+  font-family: "Inconsolata";
   font-style: normal;
   font-weight: 400;
-  src: local('Inconsolata'), url(https://fonts.gstatic.com/s/inconsolata/v11/BjAYBlHtW3CJxDcjzrnZCI4P5ICox8Kq3LLUNMylGO4.woff2) format('woff2'), url(https://fonts.gstatic.com/s/inconsolata/v11/BjAYBlHtW3CJxDcjzrnZCIbN6UDyHWBl620a-IRfuBk.woff) format('woff');
+  src: local("Inconsolata"), url(https://fonts.gstatic.com/s/inconsolata/v11/BjAYBlHtW3CJxDcjzrnZCI4P5ICox8Kq3LLUNMylGO4.woff2) format("woff2"), url(https://fonts.gstatic.com/s/inconsolata/v11/BjAYBlHtW3CJxDcjzrnZCIbN6UDyHWBl620a-IRfuBk.woff) format("woff");
 }
 
 @font-face {
-  font-family: 'Architects Daughter';
+  font-family: "Architects Daughter";
   font-style: normal;
   font-weight: 400;
-  src: local('Architects Daughter'), local('ArchitectsDaughter'), url(https://fonts.gstatic.com/s/architectsdaughter/v6/RXTgOOQ9AAtaVOHxx0IUBM3t7GjCYufj5TXV5VnA2p8.woff2) format('woff2'), url(https://fonts.gstatic.com/s/architectsdaughter/v6/RXTgOOQ9AAtaVOHxx0IUBOkI_DLF4EgbZt3mhU8gQFo.woff) format('woff');
+  src: local("Architects Daughter"), local("ArchitectsDaughter"), url(https://fonts.gstatic.com/s/architectsdaughter/v6/RXTgOOQ9AAtaVOHxx0IUBM3t7GjCYufj5TXV5VnA2p8.woff2) format("woff2"), url(https://fonts.gstatic.com/s/architectsdaughter/v6/RXTgOOQ9AAtaVOHxx0IUBOkI_DLF4EgbZt3mhU8gQFo.woff) format("woff");
 }
 
 /**
@@ -25,7 +25,7 @@
 html {
     background: #2E3436;
     color: #FFF;
-    font-family: 'Open Sans', sans-serif;
+    font-family: "Open Sans", sans-serif;
     text-rendering: optimizelegibility
 }
 
@@ -80,7 +80,7 @@ section {
 
 #room {
     background: #EEE;
-    border-radius: 5px;
+    border-radius: 5px 0 0 5px;
     color: #333;
     flex: 5;
     margin: 0 0 0 3px;
@@ -124,6 +124,32 @@ section {
 #room>div.event>.msg {
     clear: none;
     font-weight: 700
+}
+
+#room div.embed {
+    background: #CCC;
+    border: 1px solid #FFF;
+    border-radius: 5px;
+    margin: 5px;
+    padding: 15px;
+    text-align: center
+}
+
+#room img {
+    display: block;
+    margin: 0 auto;
+    max-height: 500px;
+    max-width: 90%
+}
+
+#room span.color {
+    border: 1px solid #2E3436;
+    border-radius: 5px;
+    display: inline-block;
+    height: 16px;
+    margin: 0 5px;
+    vertical-align: top;
+    width: 16px;
 }
 
 /**
@@ -209,17 +235,30 @@ footer>a:hover {
 /**
  * Messages
  */
-code, quote {
+code, blockquote {
     background: #FFF;
+    border-left: 3px solid;
     display: block;
     margin: 2px;
-    padding: 2px
+    padding: 5px
 }
 
 code {
-    font-family: 'Inconsolata', monospace;
+    border-color: #3BBADC;
+    font-family: "Inconsolata", monospace;
 }
 
-quote {
-    font-family: 'Architects Daughter', cursive;
+blockquote {
+    border-color: #999;
+    font-family: "Architects Daughter", cursive;
+    quotes: "“" "”"
+}
+
+blockquote:before {
+    color: #ccc;
+    content: open-quote;
+    font-size: 4em;
+    line-height: 0.1em;
+    margin-right: 0.25em;
+    vertical-align: -0.4em;
 }
