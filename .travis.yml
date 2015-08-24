@@ -1,0 +1,19 @@
+language: php
+php:
+    - 7.0
+
+env:
+    - LIBWEBSOCKETS_VERSION=v1.4-chrome43-firefox-36
+
+install:
+    - sudo apt-get install -y lcov
+    - gem install coveralls-lcov
+
+before_script:
+    - ./scripts/dev/install_libwebsockets.sh $LIBWEBSOCKETS_VERSION
+
+script:
+    - ./scripts/dev/build_n_test.sh $LIBWEBSOCKETS_VERSION
+
+after_success:
+    - coveralls-lcov coverage.info
