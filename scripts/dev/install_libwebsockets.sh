@@ -11,7 +11,9 @@ LIBWEBSOCKETS_NAME=libwebsockets
 PACKAGE_NAME=${LIBWEBSOCKETS_NAME}-${LIBWEBSOCKETS_VERSION}
 LIBWEBSOCKETS_PREFIX=${HOME}/${PACKAGE_NAME}
 
-wget https://github.com/warmcat/${LIBWEBSOCKETS_NAME}/archive/${LIBWEBSOCKETS_VERSION}.tar.gz ${PACKAGE_NAME}.tar.gz || exit 1
+if [ ! -e ${PACKAGE_NAME}.tar.gz ]; then
+    wget -O ${PACKAGE_NAME}.tar.gz https://github.com/warmcat/${LIBWEBSOCKETS_NAME}/archive/v${LIBWEBSOCKETS_VERSION}.tar.gz || exit 1
+fi
 tar xvf ${PACKAGE_NAME}.tar.gz || exit 1
 
 cd ${PACKAGE_NAME}
