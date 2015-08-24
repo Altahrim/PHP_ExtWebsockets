@@ -19,7 +19,7 @@ class Server
      * Topic
      * @var string
      */
-    private $topic = 'Ceci n\'est pas un chat';
+    private $topic = 'Change the topic with /topic <your_topic>';
 
     /**
      * History
@@ -131,7 +131,7 @@ class Server
                     break;
                 case '/help':
                     $msg = $this->buildMessage('event', [
-                        'text' => 'Visiblement, ' . $this->connections[$conn->getUid()]->getUsername() . ' voudrait de l\aide… Quelqu\'un peut faire quelque chose ?'
+                        'text' => $this->connections[$conn->getUid()]->getUsername() . ' would like some help but as I am too lazy to implement it, can someone help him?'
                     ], $time, true);
                     $serv->broadcast($msg);
                     break;
@@ -146,10 +146,9 @@ class Server
                     break;
                 case '/kick':
                     $msg = $this->buildMessage('alert', [
-                        'result' => 'D\'où tu tentes de kicker les gens toi ? Tu te crois admin ?'
+                        'result' => 'Hey! Why do you try to kick people?'
                     ], $time, false);
                     $conn->sendJson($msg);
-                    $conn->disconnect();
                     break;
                 case '/me':
                     $message = $this->connections[$conn->getUid()]->getUsername() . ' ' . htmlspecialchars($cmd[1]);
@@ -230,7 +229,6 @@ class Server
                     $context  = 'code';
                     if ('/code-' === $part) {
                         $language = mb_strtolower($this->escape(array_shift($parts)));
-                        var_dump('New LG', $part, $language);
                         $message .= '<code class="language-' . $language . '">';
                     } else {
                         $message .= '<code>';
@@ -291,7 +289,8 @@ class Server
             }
             return str_replace(['<code>', '</code>'], '', highlight_string($str, true));
         }
-        return $this->escape($str);
+
+        return $this->escape(nl2br($str));
     }
 
     /**

@@ -87,7 +87,7 @@ ws_chat_room.prototype.displayMessage = function(time, data, username, noNotific
     this._scroll();
 
     if (noNotification) {
-        this.chat._notify('Nouveau message de ' + username, data.msg);
+        this.chat._notify('New message from ' + username, data.msg);
     }
 
     return msg;
@@ -158,6 +158,7 @@ function ws_chat(host, port, uri, secure) {
         return 'Bye !';
     }.bind(this));
 
+    Notification.requestPermission();
     this.nicknames = {};
     this.input = document.getElementById('input');
     this.contactList = new ws_chat_list('people', this.nicknames);
@@ -177,13 +178,13 @@ ws_chat.prototype.onMessage = function(payload) {
     switch (msg.op) {
         case 'connect':
             this.contactList.setUser(msg.data.uid, msg.data.username);
-            var text = msg.data.username + ' vient de se connecter.';
+            var text = msg.data.username + ' has joined the conversation.';
             this.room.displayEvent(msg.time, text);
             this._notify(text);
             break;
         case 'disconnect':
             this.contactList.unsetUser(msg.data.uid);
-            var text = this.nicknames[msg.data.uid] + ' vient de se déconnecter.';
+            var text = this.nicknames[msg.data.uid] + ' has left the conversation.';
             this.room.displayEvent(msg.time, text);
             this._notify(text);
             break;
@@ -191,7 +192,7 @@ ws_chat.prototype.onMessage = function(payload) {
             this.room.displayMessage(msg.time, msg.data);
             break;
         case 'nick':
-            this.room.displayEvent(msg.time, this.nicknames[msg.data.uid] + ' est désormais connu sous le nom de ' + msg.data.username);
+            this.room.displayEvent(msg.time, this.nicknames[msg.data.uid] + ' changes his nickname to ' + msg.data.username);
             this.contactList.setUser(msg.data.uid, msg.data.username);
             if (msg.data.uid == this.contactList.me) {
                 localStorage.setItem('username', msg.data.username);
@@ -201,8 +202,8 @@ ws_chat.prototype.onMessage = function(payload) {
             this.room.displayEvent(msg.time, msg.data.text);
             break;
         case 'topic':
-            this.room.displayEvent(msg.time, this.nicknames[msg.data.uid] + ' a changé le sujet');
             this.topic.textContent = msg.data.topic;
+            this.room.displayEvent(msg.time, this.nicknames[msg.data.uid] + ' changed the topic to ' + this.topic.textContent);
             break;
         case 'welcome':
             this.contactList.setUserMe(msg.data.uid, msg.data.username);
@@ -218,7 +219,7 @@ ws_chat.prototype.onMessage = function(payload) {
                     this.room.displayMessage(data[0], data[1], data[2], true);
                 }
             }
-            this.room.displayEvent(msg.time, 'Vous vous êtes connecté.');
+            this.room.displayEvent(msg.time, 'You joined the conversation');
 
             this.topic.textContent = msg.data.topic;
             break;
@@ -233,7 +234,7 @@ ws_chat.prototype.onMessage = function(payload) {
 
 ws_chat.prototype.onClose = function() {
     this.log('Disconnected');
-    document.getElementsByTagName('html')[0].innerHTML = 'Et voilà, c\'est fini :p';
+    document.getElementsByTagName('html')[0].innerHTML = 'End of conversation (server closes connection)';
 }
 
 ws_chat.prototype.send = function(text) {
