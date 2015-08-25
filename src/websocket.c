@@ -392,9 +392,8 @@ PHP_METHOD(WS_Server, run)
 	int nextTick = 0;
 	struct timeval tv;
 
-	if (zend_parse_parameters_none() != SUCCESS) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(0, 0);
+	ZEND_PARSE_PARAMETERS_END();
 
 	// Start websocket
 	intern = (ws_server_obj *) Z_OBJ_P(getThis());
@@ -447,9 +446,9 @@ PHP_METHOD(WS_Server, __construct)
 	ws_server_obj *intern;
 	long port = 8080;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &port) != SUCCESS) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_LONG(port)
+	ZEND_PARSE_PARAMETERS_END();
 
 	intern = (ws_server_obj *) Z_OBJ_P(getThis());
 	intern->info.port = port;
@@ -466,9 +465,8 @@ PHP_METHOD(WS_Server, stop)
 	ws_server_obj *intern;
 	ws_connection_obj *conn;
 
-	if (zend_parse_parameters_none() != SUCCESS) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(0, 0);
+	ZEND_PARSE_PARAMETERS_END();
 
 	intern = (ws_server_obj *) Z_OBJ_P(getThis());
 
@@ -536,9 +534,11 @@ PHP_METHOD(WS_Server, broadcast)
 	ws_connection_obj *conn;
 	long ignoredId = -1;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|l", &str, &ignoredId) != SUCCESS) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_STR(str)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_LONG(ignoredId)
+	ZEND_PARSE_PARAMETERS_END();
 
 	intern = (ws_server_obj *) Z_OBJ_P(getThis());
 	ZEND_HASH_FOREACH(Z_ARR(intern->connections), 0);
@@ -578,9 +578,9 @@ PHP_METHOD(WS_Connection, sendText)
 	zend_string *text;
 	int n;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "S", &text) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(1, 1);
+		Z_PARAM_STR(text)
+	ZEND_PARSE_PARAMETERS_END();
 
 	intern = (ws_connection_obj *) Z_OBJ_P(getThis());
 	n = php_ws_conn_write(intern, text);
@@ -603,9 +603,10 @@ PHP_METHOD(WS_Connection, sendJson)
 	zval *val;
 	int n;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &val) == FAILURE) {
-		return;
-	}
+
+	ZEND_PARSE_PARAMETERS_START(1, 1);
+		Z_PARAM_ZVAL(val);
+	ZEND_PARSE_PARAMETERS_END();
 
 	intern = (ws_connection_obj *) Z_OBJ_P(getThis());
 	php_json_encode(&text, val, PHP_JSON_UNESCAPED_UNICODE|PHP_JSON_UNESCAPED_SLASHES);
@@ -624,9 +625,8 @@ PHP_METHOD(WS_Connection, isConnected)
 {
 	ws_connection_obj *intern;
 
-	if (zend_parse_parameters_none() != SUCCESS) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(0, 0);
+	ZEND_PARSE_PARAMETERS_END();
 
 	intern = (ws_connection_obj *) Z_OBJ_P(getThis());
 
@@ -640,9 +640,8 @@ PHP_METHOD(WS_Connection, getUid)
 {
 	ws_connection_obj *intern;
 
-	if (zend_parse_parameters_none() != SUCCESS) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(0, 0);
+	ZEND_PARSE_PARAMETERS_END();
 
 	intern = (ws_connection_obj *) Z_OBJ_P(getThis());
 
@@ -658,9 +657,8 @@ PHP_METHOD(WS_Connection, disconnect)
 {
 	ws_connection_obj *intern;
 
-	if (zend_parse_parameters_none() != SUCCESS) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(0, 0);
+	ZEND_PARSE_PARAMETERS_END();
 
 	intern = (ws_connection_obj *) Z_OBJ_P(getThis());
 	php_ws_conn_close(intern);
