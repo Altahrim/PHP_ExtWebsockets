@@ -16,52 +16,54 @@
   +----------------------------------------------------------------------+
 */
 
-/* $Id$ */
-
-#ifndef PHP_WEBSOCKET_H
-#define PHP_WEBSOCKET_H
+#ifndef WEBSOCKET_CONNECTION_H
+#define WEBSOCKET_CONNECTION_H
 
 #include <php.h>
 #include <libwebsockets.h>
 #include "ws_constants.h"
 
-extern zend_module_entry websocket_module_entry;
-#define phpext_websocket_ptr &websocket_module_entry
+/***** Class \WebSocket\Connection *****/
 
-#define PHP_WEBSOCKET_VERSION "0.1.0"
+/*--- Storage ---*/
 
-#ifdef PHP_WIN32
-#	define PHP_WEBSOCKET_API __declspec(dllexport)
-#elif defined(__GNUC__) && __GNUC__ >= 4
-#	define PHP_WEBSOCKET_API __attribute__ ((visibility("default")))
-#else
-#	define PHP_WEBSOCKET_API
-#endif
+typedef struct _ws_connection_obj {
+	zend_object std;
 
-#ifdef ZTS
-#include "TSRM.h"
-#endif
+	// ID (unique on server)
+	zend_ulong id;
 
-/*
-	Declare any global variables you may need between the BEGIN
-	and END macros here:
+	// Connection state (Connected/Disconnected)
+	zend_bool connected;
 
-ZEND_BEGIN_MODULE_GLOBALS(websocket)
-	zend_long  global_value;
-	char *global_string;
-ZEND_END_MODULE_GLOBALS(websocket)
-*/
+	// Write buffer
+	struct libwebsocket_context *context;
+	zend_string *buf[WEBSOCKET_CONNECTION_BUFFER_SIZE];
+	unsigned int read_ptr;
+	unsigned int write_ptr;
 
-#ifdef ZTS
-#define WEBSOCKET_G(v) ZEND_TSRMG(websocket_globals_id, zend_websocket_globals *, v)
-#ifdef COMPILE_DL_WEBSOCKET
-ZEND_TSRMLS_CACHE_EXTERN();
-#endif
-#else
-#define WEBSOCKET_G(v) (websocket_globals.v)
-#endif
+	// LibWebSockets context
+	struct libwebsocket *wsi;
+} ws_connection_obj;
 
-#endif /* PHP_WEBSOCKET_H */
+/*--- Definition ---*/
+
+zend_class_entry *ws_connection_ce;
+zend_object_handlers ws_connection_object_handlers;
+
+PHP_METHOD(WS_Connection, sendText);
+PHP_METHOD(WS_Connection, sendJson);
+PHP_METHOD(WS_Connection, isConnected);
+PHP_METHOD(WS_Connection, getUid);
+PHP_METHOD(WS_Connection, disconnect);
+
+/*--- Handlers ---*/
+
+zend_object* ws_connection_create_object_handler(zend_class_entry *ce TSRMLS_DC);
+void ws_connection_free_object_storage_handler(ws_connection_obj *intern TSRMLS_DC);
+void register_ws_connection_class(TSRMLS_DC);
+
+#endif /* WEBSOCKET_CONNECTION_H */
 
 /*
  * Local variables:

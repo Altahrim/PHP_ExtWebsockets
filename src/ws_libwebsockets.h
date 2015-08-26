@@ -1,8 +1,8 @@
 /*
   +----------------------------------------------------------------------+
-  | PHP Version 5                                                        |
+  | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2014 The PHP Group                                |
+  | Copyright (c) 1997-2015 The PHP Group                                |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -16,30 +16,37 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef WEBSOCKET_CONSTANTS_H
-#define WEBSOCKET_CONSTANTS_H
+#ifndef WS_LIBWEBSOCKETS_H
+#define WS_LIBWEBSOCKETS_H
 
-/**
- * Frequency in Hertz
- */
-#define PHP_WEBSOCKET_FREQUENCY 0.2
+#include <php.h>
+#include <libwebsockets.h>
+#include "ws_constants.h"
+#include "ws_server.h"
+#include "ws_connection.h"
 
-/**
- * Minimal WebSocket version supported by this extension
- */
-#define WEBSOCKET_MIN_VERSION 13
 
-/**
- * Magic number used by WebSockets to accept incoming connections
- */
-#define WEBSOCKET_MAGIC_NUMBER "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+/*--- Libwebsocket protocol and callback ---*/
 
-/**
- * Number of unsent messages to keep in connection object
- */
-#define WEBSOCKET_CONNECTION_BUFFER_SIZE 30
+int callback_php(struct libwebsocket_context *context, struct libwebsocket *wsi, enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len);
+static struct libwebsocket_protocols protocols[] = {
+	{
+		"default",		/* name */
+		callback_php,	/* callback */
+		sizeof(zval),	/* per_session_data_size */
+		0				/* max frame size / rx buffer */
+	},
+	{ NULL, NULL, 0, 0 }
+};
 
-#endif /* WEBSOCKET_CONSTANTS_H */
+/*--- Helpers ---*/
+
+void get_token_as_array(zval *arr, struct libwebsocket *wsi);
+void php_ws_conn_close(ws_connection_obj *conn);
+int php_ws_conn_write(ws_connection_obj *conn, zend_string *text);
+
+
+#endif /* WS_LIBWEBSOCKETS_H */
 
 /*
  * Local variables:

@@ -5,5 +5,5 @@
   - [ ] Add fd callbacks
  - [ ] Allow secure websockets (wss)
  - [ ] Use `Z_PARAM_FUNC` for callbacks (?)
- - [ ] Split code in several files
+ - [x] Split code in several files
  - [ ] Add some tests
