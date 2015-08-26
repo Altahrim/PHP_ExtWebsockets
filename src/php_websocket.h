@@ -50,9 +50,9 @@ PHP_METHOD(wsObj, callbackName)																\
 	ws_server_obj *intern;																	\
 	zval *cb;																				\
 																							\
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &cb) == FAILURE) {			\
-		return;																				\
-	}																						\
+	ZEND_PARSE_PARAMETERS_START(1, 1)														\
+		Z_PARAM_ZVAL(cb)																	\
+	ZEND_PARSE_PARAMETERS_END();															\
 																							\
 	if (zend_is_callable(cb, 0, NULL) == FAILURE) {											\
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "$callback is not a valid callback");	\
