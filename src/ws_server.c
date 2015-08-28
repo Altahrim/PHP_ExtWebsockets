@@ -22,7 +22,7 @@
 #include "ws_server.h"
 #include "ws_libwebsockets.h"
 
-/***** Class \Websocket\Server *****/
+/***** Class \WebSocket\Server *****/
 
 /*--- Helpers ---*/
 
@@ -30,22 +30,11 @@
 PHP_METHOD(wsObj, callbackName)																\
 {																							\
 	printf("Add callback %s (%s)\n", #callbackName, #callbackStorage);						\
-	ws_server_obj *intern;																	\
-	zval *cb;																				\
+	ws_server_obj *intern = (ws_server_obj *) Z_OBJ_P(getThis());							\
 																							\
 	ZEND_PARSE_PARAMETERS_START(1, 1)														\
-		Z_PARAM_ZVAL(cb)																	\
+		Z_PARAM_FUNC_EX(intern->callbackStorage.fci, intern->callbackStorage.fcc, 0, 1);	\
 	ZEND_PARSE_PARAMETERS_END();															\
-																							\
-	if (zend_is_callable(cb, 0, NULL) == FAILURE) {											\
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "$callback is not a valid callback");	\
-		RETURN_FALSE;																		\
-	}																						\
-																							\
-	intern = (ws_server_obj *) Z_OBJ_P(getThis());											\
-																							\
-	zval_dtor(&intern->callbackStorage);													\
-	ZVAL_DUP(&intern->callbackStorage, cb);													\
 																							\
 	RETURN_TRUE;																			\
 }
@@ -68,23 +57,23 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_broadcast, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_onClientAccept, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
+	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_onClientData, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
+	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_onTick, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
+	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_onClose, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
+	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_onFilterHeaders, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
+	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 1)
 ZEND_END_ARG_INFO()
 
 const zend_function_entry obj_ws_server_funcs[] = {
@@ -117,7 +106,6 @@ void register_ws_server_class(TSRMLS_DC)
 
 zend_object* ws_server_create_object_handler(zend_class_entry *ce TSRMLS_DC)
 {
-	printf("Create server object\n");
 	ws_server_obj *intern = emalloc(sizeof(ws_server_obj));
 	memset(intern, 0, sizeof(ws_server_obj));
 
@@ -138,11 +126,16 @@ zend_object* ws_server_create_object_handler(zend_class_entry *ce TSRMLS_DC)
 	intern->info.protocols = protocols;
 
 	intern->exit_request = 0;
-	ZVAL_UNDEF(&intern->cb_accept);
-	ZVAL_UNDEF(&intern->cb_close);
-	ZVAL_UNDEF(&intern->cb_data);
-	ZVAL_UNDEF(&intern->cb_tick);
-	ZVAL_UNDEF(&intern->cb_filter_headers);
+	intern->cb_accept.fci = empty_fcall_info;
+	intern->cb_accept.fcc = empty_fcall_info_cache;
+	intern->cb_close.fci = empty_fcall_info;
+	intern->cb_close.fcc = empty_fcall_info_cache;
+	intern->cb_data.fci = empty_fcall_info;
+	intern->cb_data.fcc = empty_fcall_info_cache;
+	intern->cb_tick.fci = empty_fcall_info;
+	intern->cb_tick.fcc = empty_fcall_info_cache;
+	intern->cb_filter_headers.fci = empty_fcall_info;
+	intern->cb_filter_headers.fcc = empty_fcall_info_cache;
 	intern->next_id = 0;
 	array_init_size(&intern->connections, 20);
 
@@ -151,16 +144,9 @@ zend_object* ws_server_create_object_handler(zend_class_entry *ce TSRMLS_DC)
 
 void ws_server_free_object_storage_handler(ws_server_obj *intern TSRMLS_DC)
 {
-	printf("Free server object\n");
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
-	zval_dtor(&intern->cb_accept);
-	zval_dtor(&intern->cb_close);
-	zval_dtor(&intern->cb_data);
-	zval_dtor(&intern->cb_filter_headers);
-	zval_dtor(&intern->cb_tick);
 	zval_dtor(&intern->connections);
 	efree(intern);
-	printf("Server destroyed\n");
 }
 
 /*--- Methods ---*/
@@ -205,12 +191,15 @@ PHP_METHOD(WS_Server, run)
 	oldMs = ms = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 	while (n >= 0 && !intern->exit_request) {
 		if (nextTick <= 0) {
-			// printf("Tick. Callback is %p\n", intern->cb_tick);
-			if (Z_TYPE(intern->cb_tick) != IS_UNDEF) {
+			printf("Tick.\n");
+			if (ZEND_FCI_INITIALIZED(intern->cb_tick.fci)) {
 				zval retval;
 				ZVAL_NULL(&retval);
 				zval params[1] = { *getThis() };
-				if (FAILURE == call_user_function(CG(function_table), NULL, &intern->cb_tick, &retval, 1, params TSRMLS_CC)) {
+				intern->cb_close.fci.param_count = 1;
+				intern->cb_close.fci.params = params;
+				intern->cb_close.fci.retval = &retval;
+				if (FAILURE == zend_call_function(&intern->cb_close.fci, &intern->cb_close.fcc)) {
 					intern->exit_request = 1;
 					php_error_docref(NULL, E_WARNING, "Unable to call tick callback");
 				}
@@ -275,6 +264,7 @@ PHP_METHOD(WS_Server, broadcast)
 		if (conn->id == ignoredId) {
 			continue;
 		}
+		printf("Broadcast to %d\n", conn->id);
 		php_ws_conn_write(conn, str);
 	ZEND_HASH_FOREACH_END();
 	efree(str);

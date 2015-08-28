@@ -22,9 +22,14 @@
 #include <php.h>
 #include <libwebsockets.h>
 
-/***** Class \WebSocket\Connection *****/
+/***** Class \WebSocket\Server *****/
 
 /*--- Storage ---*/
+
+typedef struct _ws_callback {
+	zend_fcall_info fci;
+	zend_fcall_info_cache fcc;
+} ws_callback;
 
 typedef struct _ws_server_obj {
 	zend_object std;
@@ -33,11 +38,11 @@ typedef struct _ws_server_obj {
 	struct lws_context_creation_info info;
 
 	// Available PHP callbacks
-	zval cb_accept;
-	zval cb_tick;
-	zval cb_close;
-	zval cb_data;
-	zval cb_filter_headers;
+	ws_callback cb_accept;
+	ws_callback cb_tick;
+	ws_callback cb_close;
+	ws_callback cb_data;
+	ws_callback cb_filter_headers;
 
 	// Current connections
 	zend_ulong next_id;

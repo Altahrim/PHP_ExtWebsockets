@@ -229,12 +229,11 @@ ws_chat.prototype.onMessage = function(payload) {
         default:
             this.log("Unknown operation");
     }
-    
 }
 
 ws_chat.prototype.onClose = function() {
     this.log('Disconnected');
-    document.getElementsByTagName('html')[0].innerHTML = 'End of conversation (server closes connection)';
+    document.body.innerHTML = 'End of conversation (server closes connection). Press F5 to retry.';
 }
 
 ws_chat.prototype.send = function(text) {

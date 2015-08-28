@@ -21,6 +21,8 @@
 #include <php.h>
 #include "ws_connection.h"
 #include <ext/json/php_json.h>
+#include "ws_libwebsockets.h"
+#include <zend_smart_str.h>
 
 /***** Class \WebSocket\Connection *****/
 
@@ -69,7 +71,6 @@ void register_ws_connection_class(TSRMLS_DC)
 
 zend_object* ws_connection_create_object_handler(zend_class_entry *ce TSRMLS_DC)
 {
-	printf("Create connection object\n");
 	ws_connection_obj *intern = emalloc(sizeof(ws_connection_obj));
 	memset(intern, 0, sizeof(ws_connection_obj));
 
@@ -87,8 +88,6 @@ zend_object* ws_connection_create_object_handler(zend_class_entry *ce TSRMLS_DC)
 
 void ws_connection_free_object_storage_handler(ws_connection_obj *intern TSRMLS_DC)
 {
-	printf("Free connection object\n");
-
 	while (intern->read_ptr != intern->write_ptr) {
 		zend_string_delref(intern->buf[intern->read_ptr]);
 		intern->read_ptr = (intern->read_ptr + 1) % WEBSOCKET_CONNECTION_BUFFER_SIZE;
@@ -135,7 +134,6 @@ PHP_METHOD(WS_Connection, sendJson)
 	smart_str text = {0};
 	zval *val;
 	int n;
-
 
 	ZEND_PARSE_PARAMETERS_START(1, 1);
 		Z_PARAM_ZVAL(val);

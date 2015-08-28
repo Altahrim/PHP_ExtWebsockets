@@ -90,12 +90,14 @@ int callback_php(struct libwebsocket_context *context, struct libwebsocket *wsi,
 
 		case LWS_CALLBACK_FILTER_PROTOCOL_CONNECTION:
 			printf("Filter Protocol Connection\n");
-			if (Z_TYPE(intern->cb_filter_headers) != IS_UNDEF) {
+			if (ZEND_FCI_INITIALIZED(intern->cb_filter_headers.fci)) {
 				get_token_as_array(&tmp, wsi);
-
 				ZVAL_FALSE(&retval);
 				zval params[2] = { tmp, *server };
-				if (FAILURE == call_user_function(CG(function_table), NULL, &intern->cb_filter_headers, &retval, 2, params TSRMLS_CC)) {
+				intern->cb_filter_headers.fci.param_count = 2;
+				intern->cb_filter_headers.fci.params = params;
+				intern->cb_filter_headers.fci.retval = &retval;
+				if (FAILURE == zend_call_function(&intern->cb_filter_headers.fci, &intern->cb_filter_headers.fcc)) {
 					php_error_docref(NULL, E_WARNING, "Unable to call filter headers callback");
 				}
 
@@ -112,30 +114,37 @@ int callback_php(struct libwebsocket_context *context, struct libwebsocket *wsi,
 			wsconn = (ws_connection_obj *) Z_OBJ_P(connection);
 			wsconn->id = ++((ws_server_obj *) Z_OBJ(*server))->next_id;
 			wsconn->context = context;
-			printf("Accept connection %lu. Callback is %p\n", wsconn->id, intern->cb_accept);
+			printf("Accept connection %lu\n", wsconn->id);
 			wsconn->wsi = wsi;
 
 			zval_addref_p(connection);
 			add_index_zval(&intern->connections, wsconn->id, &connection);
 
 			wsconn->connected = 1;
-			if (Z_TYPE(intern->cb_accept) != IS_UNDEF) {
+			if (ZEND_FCI_INITIALIZED(intern->cb_accept.fci)) {
 				ZVAL_NULL(&retval);
-				zval params[2] = { *server, connection };
-				if (FAILURE == call_user_function(CG(function_table), NULL, &intern->cb_accept, &retval, 2, params TSRMLS_CC)) {
+				zval params[2] = { *server, *connection };
+				intern->cb_accept.fci.param_count = 2;
+				intern->cb_accept.fci.params = params;
+				intern->cb_accept.fci.retval = &retval;
+				if (FAILURE == zend_call_function(&intern->cb_accept.fci, &intern->cb_accept.fcc)) {
 					php_error_docref(NULL, E_WARNING, "Unable to call accept callback");
 				}
+
 				zval_dtor(&retval);
 			}
 			break;
 
 		case LWS_CALLBACK_RECEIVE:
-			printf("Receive data. Callback is %p\n", intern->cb_data);
-			if (Z_TYPE(intern->cb_data) != IS_UNDEF) {
+			printf("Receive data.\n");
+			if (ZEND_FCI_INITIALIZED(intern->cb_data.fci)) {
 				ZVAL_NULL(&retval);
 				ZVAL_STRINGL(&tmp, in, len);
 				zval params[3] = { *server, *connection, tmp };
-				if (FAILURE == call_user_function(CG(function_table), NULL, &intern->cb_data, &retval, 3, params TSRMLS_CC)) {
+				intern->cb_data.fci.param_count = 3;
+				intern->cb_data.fci.params = params;
+				intern->cb_data.fci.retval = &retval;
+				if (FAILURE == zend_call_function(&intern->cb_data.fci, &intern->cb_data.fcc)) {
 					php_error_docref(NULL, E_WARNING, "Unable to call data callback");
 				}
 
@@ -181,16 +190,19 @@ int callback_php(struct libwebsocket_context *context, struct libwebsocket *wsi,
 		case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
 			wsconn = (ws_connection_obj *) Z_OBJ_P(connection);
 			wsconn->connected = 0;
-			printf("Close %lu. Callback is %p\n", wsconn->id, intern->cb_close);
+			printf("Close %lu.\n", wsconn->id);
 
 			// Drop from active connections
 			zend_hash_index_del(Z_ARRVAL(intern->connections), wsconn->id);
 			zval_delref_p(connection);
 
-			if (Z_TYPE(intern->cb_close) != IS_UNDEF) {
+			if (ZEND_FCI_INITIALIZED(intern->cb_close.fci)) {
 				ZVAL_NULL(&retval);
 				zval params[2] = { *server, *connection };
-				if (FAILURE == call_user_function(CG(function_table), NULL, &intern->cb_close, &retval, 2, params TSRMLS_CC)) {
+				intern->cb_close.fci.param_count = 2;
+				intern->cb_close.fci.params = params;
+				intern->cb_close.fci.retval = &retval;
+				if (FAILURE == zend_call_function(&intern->cb_close.fci, &intern->cb_close.fcc)) {
 					php_error_docref(NULL, E_WARNING, "Unable to call close callback");
 				}
 				zval_dtor(&retval);
