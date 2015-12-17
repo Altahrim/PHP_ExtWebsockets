@@ -24,6 +24,22 @@
 
 /***** Class \WebSocket\Server *****/
 
+/*--- Definitions ---*/
+
+enum php_callbacks {
+	PHP_CB_ACCEPT,
+	PHP_CB_CLOSE,
+
+	PHP_CB_DATA,
+
+	//PHP_CB_FILTER_HEADERS,
+
+	PHP_CB_PING,
+	PHP_CB_TICK,
+
+	PHP_CB_COUNT
+};
+
 /*--- Storage ---*/
 
 typedef struct _ws_callback {
@@ -38,11 +54,11 @@ typedef struct _ws_server_obj {
 	struct lws_context_creation_info info;
 
 	// Available PHP callbacks
-	ws_callback cb_accept;
-	ws_callback cb_tick;
-	ws_callback cb_close;
-	ws_callback cb_data;
-	ws_callback cb_filter_headers;
+	ws_callback *callbacks[PHP_CB_COUNT];
+
+	// External event loop
+	zval *eventloop;
+	HashTable *eventloop_sockets;
 
 	// Current connections
 	zend_ulong next_id;
@@ -57,17 +73,16 @@ zend_class_entry *ws_server_ce;
 zend_object_handlers ws_server_object_handlers;
 
 PHP_METHOD(WS_Server, __construct);
+PHP_METHOD(WS_Server, setEventLoop);
+PHP_METHOD(WS_Server, serviceFd);
 PHP_METHOD(WS_Server, run);
 PHP_METHOD(WS_Server, stop);
 PHP_METHOD(WS_Server, broadcast);
-PHP_METHOD(WS_Server, onClientAccept);
-PHP_METHOD(WS_Server, onClientData);
-PHP_METHOD(WS_Server, onTick);
-PHP_METHOD(WS_Server, onClose);
-PHP_METHOD(WS_Server, onFilterHeaders);
+PHP_METHOD(WS_Server, on);
 
 /*--- Handlers ---*/
 
+zend_bool invoke_eventloop_cb(ws_server_obj *intern, const char *func, int fd, int flags);
 zend_object* ws_server_create_object_handler(zend_class_entry *ce TSRMLS_DC);
 void ws_server_free_object_storage_handler(ws_server_obj *intern TSRMLS_DC);
 void register_ws_server_class(TSRMLS_DC);

@@ -139,6 +139,7 @@ PHP_METHOD(WS_Connection, sendJson)
 		Z_PARAM_ZVAL(val);
 	ZEND_PARSE_PARAMETERS_END();
 
+	printf("Conn at %p send JSON\n", getThis());
 	intern = (ws_connection_obj *) Z_OBJ_P(getThis());
 	php_json_encode(&text, val, PHP_JSON_UNESCAPED_UNICODE|PHP_JSON_UNESCAPED_SLASHES);
 	n = php_ws_conn_write(intern, text.s);

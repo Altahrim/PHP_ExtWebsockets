@@ -23,16 +23,16 @@
 #endif
 
 #include "php_websocket.h"
+#include "ws_eventloop.h"
 #include "ws_server.h"
 #include "ws_connection.h"
 #include "ws_libwebsockets.h"
+#include <ext/standard/info.h>
 
-/* If you declare any globals in php_websocket.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(websocket)
-*/
 
 /* True global resources - no need for thread safety here */
-// static int le_websocket;
+static int le_websocket;
 
 /* {{{ PHP_INI
  */
@@ -66,6 +66,7 @@ PHP_MINIT_FUNCTION(websocket)
 
 	register_ws_server_class(TSRMLS_CC);
 	register_ws_connection_class(TSRMLS_CC);
+	register_ws_eventloop_class(TSRMLS_CC);
 
 	return SUCCESS;
 }

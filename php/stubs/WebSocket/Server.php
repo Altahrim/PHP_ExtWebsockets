@@ -2,6 +2,11 @@
 namespace WebSocket;
 
 class Server {
+    const ON_ACCEPT = null;
+    const ON_DATA = null;
+    const ON_CLOSE = null;
+    const ON_TICK = null;
+
     /**
      * Constructor
      *
@@ -12,57 +17,26 @@ class Server {
 
     /**
      *
+     * @param int $event self::ON_*
      * @param callable $callback
      */
-    public function onClientAccept(callable $callback) {}
+    public function on(int $event, callable $callback) {}
 
     /**
+     * Use external event loop
      *
-     * @param callable $callback
+     * @param \WebSocket\InterfaceEventLoop $ev
+     * @return bool True if event handled by library
      */
-    public function onClose(callable $callback) {}
+    public function setEventLoop(\WebSocket\EventLoopInterface $ev) {}
 
     /**
+     * Register callbacks for event-loop
      *
-     * @param callable $callback
+     * @param socket $fd
+     * @param int $revents
      */
-    public function onClientError(callable $callback) {}
-
-    /**
-     *
-     * @param callable $callback
-     */
-    public function onClientMessage(callable $callback) {}
-
-    /**
-     *
-     * @param callable $callback
-     */
-    public function onTick(callable $callback) {}
-
-    /**
-     *
-     * @param callable $callback
-     */
-    public function onFilterHeaders(callable $callback) {}
-
-    /**
-     *
-     * @param callable $callback
-     */
-    public function onUserSignal(callable $callback) {}
-
-    /**
-     *
-     * @return string|null
-     */
-    //public function getLastUrl() {}
-
-    /**
-     *
-     * @return array|null
-     */
-    //public function getLastHeaders() {}
+    public function serviceFd($fd, $revents) {}
 
     /**
      * Launch websocket server

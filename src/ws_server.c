@@ -18,30 +18,29 @@
 
 /* $Id$ */
 
-#include <php.h>
+#include "php_websocket.h"
+#include "ws_eventloop.h"
 #include "ws_server.h"
 #include "ws_libwebsockets.h"
+#include <php_network.h>
+#include <zend_interfaces.h>
+
+ZEND_EXTERN_MODULE_GLOBALS(websocket)
 
 /***** Class \WebSocket\Server *****/
-
-/*--- Helpers ---*/
-
-#define PHP_METHOD_WS_CALLBACK(wsObj, callbackName, callbackStorage) 						\
-PHP_METHOD(wsObj, callbackName)																\
-{																							\
-	printf("Add callback %s (%s)\n", #callbackName, #callbackStorage);						\
-	ws_server_obj *intern = (ws_server_obj *) Z_OBJ_P(getThis());							\
-																							\
-	ZEND_PARSE_PARAMETERS_START(1, 1)														\
-		Z_PARAM_FUNC_EX(intern->callbackStorage.fci, intern->callbackStorage.fcc, 0, 1);	\
-	ZEND_PARSE_PARAMETERS_END();															\
-																							\
-	RETURN_TRUE;																			\
-}
 
 /*--- Definitions ---*/
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_run, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_setEventLoop, 0, 0, 1)
+	ZEND_ARG_TYPE_INFO(0, callback, IS_OBJECT, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_serviceFd, 0, 0, 1)
+	ZEND_ARG_TYPE_INFO(0, callback, IS_RESOURCE, 0)
+	ZEND_ARG_TYPE_INFO(0, events, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server___construct, 0, 0, 1)
@@ -56,35 +55,18 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_broadcast, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, ignored, IS_LONG, 1)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_onClientAccept, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 1)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_onClientData, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 1)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_onTick, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 1)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_onClose, 0, 0, 1)
-	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 1)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_server_onFilterHeaders, 0, 0, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ws_server_on, 0, 2, IS_TRUE|IS_FALSE, NULL, 0)
+	ZEND_ARG_TYPE_INFO(0, event, IS_LONG, 1)
 	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 1)
 ZEND_END_ARG_INFO()
 
 const zend_function_entry obj_ws_server_funcs[] = {
 	PHP_ME(WS_Server, __construct, arginfo_ws_server___construct, ZEND_ACC_PUBLIC)
 	PHP_ME(WS_Server, run, arginfo_ws_server_run, ZEND_ACC_PUBLIC)
+	PHP_ME(WS_Server, setEventLoop, arginfo_ws_server_setEventLoop, ZEND_ACC_PUBLIC)
+	PHP_ME(WS_Server, serviceFd, arginfo_ws_server_serviceFd, ZEND_ACC_PUBLIC)
 	PHP_ME(WS_Server, stop, arginfo_ws_server_stop, ZEND_ACC_PUBLIC)
-	PHP_ME(WS_Server, onClientAccept, arginfo_ws_server_onClientAccept, ZEND_ACC_PUBLIC)
-	PHP_ME(WS_Server, onClientData, arginfo_ws_server_onClientData, ZEND_ACC_PUBLIC)
-	PHP_ME(WS_Server, onTick, arginfo_ws_server_onTick, ZEND_ACC_PUBLIC)
-	PHP_ME(WS_Server, onClose, arginfo_ws_server_onClose, ZEND_ACC_PUBLIC)
-	PHP_ME(WS_Server, onFilterHeaders, arginfo_ws_server_onFilterHeaders, ZEND_ACC_PUBLIC)
+	PHP_ME(WS_Server, on, arginfo_ws_server_on, ZEND_ACC_PUBLIC)
 	PHP_ME(WS_Server, broadcast, arginfo_ws_server_broadcast, ZEND_ACC_PUBLIC)
 	PHP_FE_END
 };
@@ -100,12 +82,18 @@ void register_ws_server_class(TSRMLS_DC)
 	ws_server_ce->create_object = ws_server_create_object_handler;
 	memcpy(&ws_server_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	ws_server_object_handlers.free_obj = (zend_object_free_obj_t) ws_server_free_object_storage_handler;
+
+	zend_declare_class_constant_long(ws_server_ce, "ON_ACCEPT", sizeof("ON_ACCEPT") - 1, PHP_CB_ACCEPT);
+	zend_declare_class_constant_long(ws_server_ce, "ON_CLOSE", sizeof("ON_CLOSE") - 1, PHP_CB_CLOSE);
+	zend_declare_class_constant_long(ws_server_ce, "ON_DATA", sizeof("ON_DATA") - 1, PHP_CB_DATA);
+	zend_declare_class_constant_long(ws_server_ce, "ON_TICK", sizeof("ON_TICK") - 1, PHP_CB_TICK);
 }
 
 /*--- Handlers ---*/
 
 zend_object* ws_server_create_object_handler(zend_class_entry *ce TSRMLS_DC)
 {
+	int i;
 	ws_server_obj *intern = emalloc(sizeof(ws_server_obj));
 	memset(intern, 0, sizeof(ws_server_obj));
 
@@ -113,29 +101,24 @@ zend_object* ws_server_create_object_handler(zend_class_entry *ce TSRMLS_DC)
 	object_properties_init(&intern->std, ce);
 	intern->std.handlers = &ws_server_object_handlers;
 
-	// Set Libwebsockets default options
+	// Set LibWebsockets default options
+	memset(&intern->info, 0, sizeof(intern->info));
 	intern->info.uid = -1;
 	intern->info.gid = -1;
 	intern->info.port = 8080;
-	intern->info.iface = NULL;
-	intern->info.options = 0;
-	intern->info.ssl_cert_filepath = NULL;
-	intern->info.ssl_private_key_filepath = NULL;
-	intern->info.user = NULL;
-
+	intern->info.ssl_private_key_filepath = intern->info.ssl_cert_filepath = NULL;	//FIXME HTTPS
 	intern->info.protocols = protocols;
+	intern->info.extensions = NULL;
+	intern->info.options = 0;
 
 	intern->exit_request = 0;
-	intern->cb_accept.fci = empty_fcall_info;
-	intern->cb_accept.fcc = empty_fcall_info_cache;
-	intern->cb_close.fci = empty_fcall_info;
-	intern->cb_close.fcc = empty_fcall_info_cache;
-	intern->cb_data.fci = empty_fcall_info;
-	intern->cb_data.fcc = empty_fcall_info_cache;
-	intern->cb_tick.fci = empty_fcall_info;
-	intern->cb_tick.fcc = empty_fcall_info_cache;
-	intern->cb_filter_headers.fci = empty_fcall_info;
-	intern->cb_filter_headers.fcc = empty_fcall_info_cache;
+	for (i = 0; i < PHP_CB_COUNT; ++i) {
+		intern->callbacks[i] = NULL;
+	}
+
+	intern->eventloop = NULL;
+	intern->eventloop_sockets = NULL;
+
 	intern->next_id = 0;
 	array_init_size(&intern->connections, 20);
 
@@ -151,6 +134,38 @@ void ws_server_free_object_storage_handler(ws_server_obj *intern TSRMLS_DC)
 
 /*--- Methods ---*/
 
+zend_bool invoke_eventloop_cb(ws_server_obj *intern, const char *func, php_socket_t sock, int flags)
+{
+	zval retval, el;
+	zval php_flags;
+	zval *php_sock;
+	zval params[2];
+	unsigned int param_count = 0;
+	php_stream *stream;
+
+	if (sock) {
+		php_sock = zend_hash_index_find(intern->eventloop_sockets, sock);
+		if (NULL == php_sock) {
+			stream = php_stream_fopen_from_fd(sock, "rb", NULL);
+			php_sock = emalloc(sizeof(zval));
+			ZVAL_RES(php_sock, stream->res);
+			Z_ADDREF_P(php_sock);
+			zend_hash_index_add(intern->eventloop_sockets, sock, php_sock);
+		}
+		ZVAL_COPY_VALUE(&params[param_count++], php_sock);
+	}
+	if (flags >= 0) {
+		ZVAL_LONG(&params[param_count++], flags);
+	}
+	ZVAL_NULL(&retval);
+	zend_call_method(intern->eventloop, Z_OBJCE_P(intern->eventloop), NULL, func, strlen(func), &retval, param_count, &params[0], &params[1]);
+
+	if (zval_is_true(&retval)) {
+		return 0;
+	}
+	return -1;
+}
+
 /* {{{ proto void WebSocket\Server::__construct()
 	Constructor */
 PHP_METHOD(WS_Server, __construct)
@@ -158,56 +173,130 @@ PHP_METHOD(WS_Server, __construct)
 	ws_server_obj *intern;
 	long port = 8080;
 
-	ZEND_PARSE_PARAMETERS_START(1, 1)
+	ZEND_PARSE_PARAMETERS_START(0, 1)
+		Z_PARAM_OPTIONAL
 		Z_PARAM_LONG(port)
 	ZEND_PARSE_PARAMETERS_END();
 
+	if (NULL != WEBSOCKET_G(php_obj)) {
+		// TODO Warning, server already built
+		RETURN_FALSE;
+	}
+
+	WEBSOCKET_G(php_obj) = emalloc(sizeof(zval *));
+	ZVAL_ZVAL(WEBSOCKET_G(php_obj), getThis(), 0, ZVAL_PTR_DTOR);
 	intern = (ws_server_obj *) Z_OBJ_P(getThis());
 	intern->info.port = port;
 }
 /* }}} */
 
+/* {{{ proto void WebSocket\Server::setEventLoop()
+	Set external event loop */
+PHP_METHOD(WS_Server, setEventLoop)
+{
+	zval *el;
+	ws_server_obj *intern;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1);
+		Z_PARAM_OBJECT_OF_CLASS(el, ws_eventloop_ce)
+	ZEND_PARSE_PARAMETERS_END();
+
+	intern = (ws_server_obj *) Z_OBJ_P(getThis());
+	intern->eventloop = emalloc(sizeof(zval *));
+	ZVAL_ZVAL(intern->eventloop, el, 0, ZVAL_PTR_DTOR);
+	intern->eventloop_sockets = emalloc(sizeof(HashTable));
+	zend_hash_init(intern->eventloop_sockets, 20, NULL, ZVAL_PTR_DTOR, 0);
+}
+/* }}} */
+
+/* {{{ proto void WebSocket\Server::serviceFd()
+	Service a socket (used with external event loop) */
+PHP_METHOD(WS_Server, serviceFd)
+{
+	ws_server_obj *intern;
+	struct lws_pollfd pollfd;
+	zval* res;
+	php_stream *stream;
+	php_socket_t fd;
+	zend_long revents;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2);
+		Z_PARAM_RESOURCE(res)
+		Z_PARAM_LONG(revents);
+	ZEND_PARSE_PARAMETERS_END();
+
+	php_stream_from_zval(stream, res);
+	if (FAILURE == php_stream_cast(stream, PHP_STREAM_AS_FD, (void **)&pollfd.fd, REPORT_ERRORS)) {
+		// TODO Warning, error ?
+		RETURN_FALSE;
+	}
+
+	pollfd.events = 1;
+	pollfd.revents = revents;
+	intern = (ws_server_obj *) Z_OBJ_P(getThis());
+	lws_service_fd(WEBSOCKET_G(context), &pollfd);
+
+	if (pollfd.revents) {
+		RETURN_FALSE;
+	} else {
+		RETURN_TRUE;
+	}
+}
+/* }}} */
+
 /* {{{ proto void WebSocket\Server::run()
-	Launch websocket server */
+	Launch WebSocket server */
 PHP_METHOD(WS_Server, run)
 {
 	ws_server_obj *intern;
 	ws_connection_obj *conn;
-	struct libwebsocket_context *context;
+	struct lws *context;
 	int n = 0;
 	unsigned int ms = 0, oldMs = 0, tickInterval = 1000 / PHP_WEBSOCKET_FREQUENCY;
 	int nextTick = 0;
 	struct timeval tv;
+	struct _ws_protocol_storage * context_data;
 
 	ZEND_PARSE_PARAMETERS_START(0, 0);
 	ZEND_PARSE_PARAMETERS_END();
 
-	// Start websocket
+	// Start WebSocket
 	intern = (ws_server_obj *) Z_OBJ_P(getThis());
-	intern->info.user = getThis();
-	context = libwebsocket_create_context(&intern->info);
+	intern->info.user = emalloc(sizeof(struct _ws_protocol_storage));
+	context_data = intern->info.user;
+
+	if (NULL != WEBSOCKET_G(intern)) {
+		// TODO Warning, server already running
+		RETURN_FALSE;
+	}
+	WEBSOCKET_G(intern) = intern;
+	WEBSOCKET_G(context) = lws_create_context(&intern->info);
+
+	// If an external event loop is used, nothing more to do
+	if (intern->eventloop) {
+		return;
+	}
 
 	gettimeofday(&tv, NULL);
 	oldMs = ms = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 	while (n >= 0 && !intern->exit_request) {
 		if (nextTick <= 0) {
-			printf("Tick.\n");
-			if (ZEND_FCI_INITIALIZED(intern->cb_tick.fci)) {
+			printf("Tick from ext.\n");
+			if (intern->callbacks[PHP_CB_TICK]) {
 				zval retval;
 				ZVAL_NULL(&retval);
 				zval params[1] = { *getThis() };
-				intern->cb_close.fci.param_count = 1;
-				intern->cb_close.fci.params = params;
-				intern->cb_close.fci.retval = &retval;
-				if (FAILURE == zend_call_function(&intern->cb_close.fci, &intern->cb_close.fcc)) {
-					intern->exit_request = 1;
+				intern->callbacks[PHP_CB_TICK]->fci.param_count = 1;
+				intern->callbacks[PHP_CB_TICK]->fci.params = params;
+				intern->callbacks[PHP_CB_TICK]->fci.retval = &retval;
+				if (FAILURE == zend_call_function(&intern->callbacks[PHP_CB_TICK]->fci, &intern->callbacks[PHP_CB_TICK]->fcc)) {
 					php_error_docref(NULL, E_WARNING, "Unable to call tick callback");
 				}
 			}
 			nextTick = tickInterval;
 		}
 
-		n = libwebsocket_service(context, nextTick);
+		n = lws_service(WEBSOCKET_G(context), nextTick);
 
 		gettimeofday(&tv, NULL);
 		ms = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
@@ -226,7 +315,7 @@ PHP_METHOD(WS_Server, run)
 /* }}} */
 
 /* {{{ proto void WebSocket\Server::stop()
-	Stop websocket server */
+	Stop WebSocket server */
 PHP_METHOD(WS_Server, stop)
 {
 	ws_server_obj *intern;
@@ -239,6 +328,10 @@ PHP_METHOD(WS_Server, stop)
 
 	// Mark as stopped
 	intern->exit_request = 1;
+
+	if (intern->eventloop) {
+		// TODO In case of EventLoop, disconnect users here
+	}
 }
 /* }}} */
 
@@ -264,36 +357,35 @@ PHP_METHOD(WS_Server, broadcast)
 		if (conn->id == ignoredId) {
 			continue;
 		}
-		printf("Broadcast to %d\n", conn->id);
 		php_ws_conn_write(conn, str);
 	ZEND_HASH_FOREACH_END();
 	efree(str);
 }
 /* }}} */
 
-/* {{{ proto void WebSocket\Server::onClientAccept(callback callback)
-	Register a callback which will be called when a new connection is established */
-PHP_METHOD_WS_CALLBACK(WS_Server, onClientAccept, cb_accept)
-/* }}} */
+/* {{{ proto bool WebSocket\Server::on(string event, callback callback)
+	Register a callback for specified event */
+PHP_METHOD(WS_Server, on)
+{
+	ws_server_obj *intern;
+	ws_callback *cb = emalloc(sizeof(ws_callback));
+	long event;
 
-/* {{{ proto void WebSocket\Server::onClientData(callback callback)
-	Register a callback which will be called when data is received from client */
-PHP_METHOD_WS_CALLBACK(WS_Server, onClientData, cb_data)
-/* }}} */
+	ZEND_PARSE_PARAMETERS_START(2, 2)
+		Z_PARAM_LONG(event)
+		Z_PARAM_FUNC(cb->fci, cb->fcc)
+	ZEND_PARSE_PARAMETERS_END();
 
-/* {{{ proto void WebSocket\Server::onTick(callback callback)
-	Register a callback which will be called on each tick */
-PHP_METHOD_WS_CALLBACK(WS_Server, onTick, cb_tick)
-/* }}} */
+	if (event < 0 || event >= PHP_CB_COUNT) {
+		php_error_docref(NULL, E_WARNING, "Try to add an invalid callback");
+		RETURN_FALSE;
+	}
 
-/* {{{ proto void WebSocket\Server::onClose(callback callback)
-	Register a callback which will be called when a connection is closed */
-PHP_METHOD_WS_CALLBACK(WS_Server, onClose, cb_close)
-/* }}} */
+	intern = (ws_server_obj *) Z_OBJ_P(getThis());
+	intern->callbacks[event] = cb;
 
-/* {{{ proto boolean WebSocket\Server::onFilterHeaders(callback callback)
-	Register a callback which will be called to check headers and accept or not the new connection */
-PHP_METHOD_WS_CALLBACK(WS_Server, onFilterHeaders, cb_filter_headers)
+	RETURN_TRUE;
+}
 /* }}} */
 
 

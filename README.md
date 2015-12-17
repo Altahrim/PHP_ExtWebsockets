@@ -5,6 +5,6 @@
 
 PHP extension providing support for websockets.
 
-This extension is a simple wrapper for [libwebsockets](https://github.com/warmcat/libwebsockets) by [warmcat](https://github.com/warmcat/).
+This extension rely on [libwebsockets](https://github.com/warmcat/libwebsockets) by [warmcat](https://github.com/warmcat/) to provide object-oriented WebSockets support in PHP 7.
 
 Warning : this extension is only compatible with PHP >= 7.0 and only tested on linux.

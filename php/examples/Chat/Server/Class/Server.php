@@ -36,16 +36,17 @@ class Server
         '☹' => [':(', ':-(', '=(']
     ];
 
+
     /**
      * Constructor
      */
     public function __construct()
     {
-        $this->server      = new \WebSocket\Server(8081);
+        $this->server = new \WebSocket\Server(8081);
         $this->connections = [];
-        $this->server->onClientAccept([$this, 'onAccept']);
-        $this->server->onClose([$this, 'onClose']);
-        $this->server->onClientData([$this, 'onData']);
+        $this->server->on(\WebSocket\Server::ON_ACCEPT, [$this, 'onAccept']);
+        $this->server->on(\WebSocket\Server::ON_CLOSE, [$this, 'onClose']);
+        $this->server->on(\WebSocket\Server::ON_DATA, [$this, 'onData']);
 
         // Build smileys array
         $smileys = [];
@@ -114,6 +115,7 @@ class Server
             $cmd = explode (' ', $message, 2);
             switch ($cmd[0]) {
                 case '/shutdown':
+                    // You shouldn't keep this one in production…
                     $serv->stop();
                     break;
                 case '/quit':
@@ -180,9 +182,33 @@ class Server
         return $continue;
     }
 
-    public function run()
+    /**
+     * Example tick function
+     */
+    public function evTick1s() {
+        // You could probably do something usefull here
+        // For example, you could use $this->server->broadcast() to send regular events
+        // to all connected users
+    }
+
+    public function run($useExternalEventLoop = false)
     {
+        if (true === $useExternalEventLoop) {
+            // Advertise the library we want to control the event loop
+            $loop = new EventLoop($this);
+            $this->server->setEventLoop($loop);
+        }
+
+        // Open main socket
         $this->server->run();
+
+        if (true === $useExternalEventLoop) {
+            // Main advantage of external event loop : you can manage other events
+            // Example :
+            $tick = new \EvTimer(0, 1, [$this, 'evTick1s']);
+
+            \Ev::run();
+        }
     }
 
     public function stop()
@@ -350,5 +376,10 @@ class Server
      */
     protected function replaceColors($str) {
         return preg_replace('@#[A-F0-9]{6}|#[A-F0-9]{3}@ui', '\\0<span class="color" style="background:\\0"></span>', $str);
+    }
+
+    public function getWsServer()
+    {
+        return $this->server;
     }
 }

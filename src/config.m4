@@ -32,7 +32,7 @@ if test "$PHP_WEBSOCKET" != "no"; then
 	PHP_ADD_INCLUDE($LIBWEBSOCKETS_DIR/include)
 
 	LIBNAME=websockets
-	LIBSYMBOL=libwebsocket_callback_on_writable
+	LIBSYMBOL=lws_callback_on_writable
 
 	PHP_CHECK_LIBRARY($LIBNAME,$LIBSYMBOL,
 	[
@@ -46,6 +46,6 @@ if test "$PHP_WEBSOCKET" != "no"; then
 
 	PHP_SUBST(WEBSOCKET_SHARED_LIBADD)
 
-	PHP_NEW_EXTENSION(websocket, websocket.c ws_libwebsockets.c ws_server.c ws_connection.c, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+	PHP_NEW_EXTENSION(websocket, websocket.c ws_libwebsockets.c ws_eventloop.c ws_server.c ws_connection.c, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
 fi
 

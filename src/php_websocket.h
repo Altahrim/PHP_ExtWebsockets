@@ -24,6 +24,7 @@
 #include <php.h>
 #include <libwebsockets.h>
 #include "ws_constants.h"
+#include "ws_server.h"
 
 extern zend_module_entry websocket_module_entry;
 #define phpext_websocket_ptr &websocket_module_entry
@@ -42,15 +43,11 @@ extern zend_module_entry websocket_module_entry;
 #include "TSRM.h"
 #endif
 
-/*
-	Declare any global variables you may need between the BEGIN
-	and END macros here:
-
 ZEND_BEGIN_MODULE_GLOBALS(websocket)
-	zend_long  global_value;
-	char *global_string;
+	zval* php_obj;
+	ws_server_obj *intern;
+	struct lws_context * context;
 ZEND_END_MODULE_GLOBALS(websocket)
-*/
 
 #ifdef ZTS
 #define WEBSOCKET_G(v) ZEND_TSRMG(websocket_globals_id, zend_websocket_globals *, v)

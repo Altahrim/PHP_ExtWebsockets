@@ -26,22 +26,37 @@
 #include "ws_connection.h"
 
 
-/*--- Libwebsocket protocol and callback ---*/
+/*--- LibWebsockets protocols and callbacks ---*/
 
-int callback_php(struct libwebsocket_context *context, struct libwebsocket *wsi, enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len);
-static struct libwebsocket_protocols protocols[] = {
+/**
+ * Available protocols
+ */
+enum ws_protocols {
+	PROTOCOL_EXTPHP = 0,
+
+	PROTOCOLS_COUNT
+};
+
+int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len);
+
+struct _ws_protocol_storage {
+	zval* php_obj;
+	ws_server_obj *obj;
+};
+
+static struct lws_protocols protocols[] = {
 	{
-		"default",		/* name */
-		callback_php,	/* callback */
-		sizeof(zval),	/* per_session_data_size */
-		0				/* max frame size / rx buffer */
+		"websockets",								/* name */
+		callback_ext_php,							/* callback */
+		sizeof(struct _ws_protocol_storage),	/* per_session_data_size */
+		0											/* max frame size / rx buffer */
 	},
 	{ NULL, NULL, 0, 0 }
 };
 
 /*--- Helpers ---*/
 
-void get_token_as_array(zval *arr, struct libwebsocket *wsi);
+//void get_token_as_array(zval *arr, struct lws *wsi);
 void php_ws_conn_close(ws_connection_obj *conn);
 int php_ws_conn_write(ws_connection_obj *conn, zend_string *text);
 

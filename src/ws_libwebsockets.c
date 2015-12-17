@@ -22,9 +22,14 @@
 #include "config.h"
 #endif
 
+#include "php_websocket.h"
 #include "ws_libwebsockets.h"
+#include "ws_eventloop.h"
+#include "zend_interfaces.h"
 
-void get_token_as_array(zval *arr, struct libwebsocket *wsi)
+ZEND_EXTERN_MODULE_GLOBALS(websocket)
+
+static void get_token_as_array(zval *arr, struct lws *wsi)
 {
 	const unsigned char *key;
 	char buf[256];
@@ -50,54 +55,72 @@ void get_token_as_array(zval *arr, struct libwebsocket *wsi)
 	} while (key);
 }
 
-int callback_php(struct libwebsocket_context *context, struct libwebsocket *wsi, enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len)
+int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len)
 {
-	zval *server = libwebsocket_context_user(context);
-	ws_server_obj *intern = (ws_server_obj *) Z_OBJ_P(server);
+	ws_server_obj *intern = WEBSOCKET_G(intern);
+	zval *this = WEBSOCKET_G(php_obj);
 	ws_connection_obj * wsconn;
 	zval *connection = user;
-	zval retval, tmp;
+	zval retval;
 	int n, return_code = 0;
 	zend_string *text;
+	struct lws_pollargs *pa = in;
+	ws_callback *user_cb;
 
 	switch (reason) {
-		case LWS_CALLBACK_WSI_CREATE:
+		/** External event loop **/
+		case LWS_CALLBACK_ADD_POLL_FD:
+			if (intern->eventloop) {
+				return_code = invoke_eventloop_cb(intern, "add", pa->fd, pa->events);
+			}
+			break;
 
+		case LWS_CALLBACK_DEL_POLL_FD:
+			if (intern->eventloop) {
+				return_code = invoke_eventloop_cb(intern, "delete", pa->fd, -1);
+			}
+			break;
+
+		case LWS_CALLBACK_CHANGE_MODE_POLL_FD:
+			if (intern->eventloop) {
+				return_code = invoke_eventloop_cb(intern, "setmode", pa->fd, pa->events);
+			}
+			break;
+
+		case LWS_CALLBACK_LOCK_POLL:
+			if (intern->eventloop) {
+				return_code = invoke_eventloop_cb(intern, "lock", 0, -1);
+			}
+			break;
+
+		case LWS_CALLBACK_UNLOCK_POLL:
+			if (intern->eventloop) {
+				return_code = invoke_eventloop_cb(intern, "unlock", 0, -1);
+			}
+			break;
+		/** End external event loop **/
+
+		case LWS_CALLBACK_WSI_CREATE:
+			printf("WSI create\n");
 			break;
 
 		case LWS_CALLBACK_WSI_DESTROY:
-			printf("Destroy connection\n");
-			break;
-
-		case LWS_CALLBACK_FILTER_NETWORK_CONNECTION:
-			/* TODO
-			sockfd = (int) in;
-			struct sockaddr_storage addr;
-			int len = sizeof(addr);
-			int port; char ipstr[64] = "";
-			getpeername(sockfd, (struct sockaddr*) &addr, &len);
-			if (addr.ss_family == AF_INET) {
-			    struct sockaddr_in *s = (struct sockaddr_in *)&addr;
-			    port = ntohs(s->sin_port);
-			    lws_plat_inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
-			} else { // AF_INET6
-			    struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
-			    port = ntohs(s->sin6_port);
-			    lws_plat_inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
-			}
-			*/
+			printf("Destroy WSI\n");
 			break;
 
 		case LWS_CALLBACK_FILTER_PROTOCOL_CONNECTION:
+			/*
 			printf("Filter Protocol Connection\n");
-			if (ZEND_FCI_INITIALIZED(intern->cb_filter_headers.fci)) {
-				get_token_as_array(&tmp, wsi);
+			if (intern->cb_filter_headers->fci) {
+
 				ZVAL_FALSE(&retval);
-				zval params[2] = { tmp, *server };
-				intern->cb_filter_headers.fci.param_count = 2;
-				intern->cb_filter_headers.fci.params = params;
-				intern->cb_filter_headers.fci.retval = &retval;
-				if (FAILURE == zend_call_function(&intern->cb_filter_headers.fci, &intern->cb_filter_headers.fcc)) {
+				zval params[2];
+				get_token_as_array(&params[0], wsi);
+				ZVAL_COPY_VALUE(&params[1], this);
+				intern->cb_filter_headers->fci.param_count = 2;
+				intern->cb_filter_headers->fci.params = params;
+				intern->cb_filter_headers->fci.retval = &retval;
+				if (FAILURE == zend_call_function(&intern->cb_filter_headers->fci, &intern->cb_filter_headers->fcc)) {
 					php_error_docref(NULL, E_WARNING, "Unable to call filter headers callback");
 				}
 
@@ -107,29 +130,37 @@ int callback_php(struct libwebsocket_context *context, struct libwebsocket *wsi,
 
 				zval_dtor(&retval);
 			}
+			*/
 			break;
 
 		case LWS_CALLBACK_ESTABLISHED:
 			object_init_ex(connection, ws_connection_ce);
 			wsconn = (ws_connection_obj *) Z_OBJ_P(connection);
-			wsconn->id = ++((ws_server_obj *) Z_OBJ(*server))->next_id;
-			wsconn->context = context;
+			wsconn->id = ++intern->next_id;
+			wsconn->context = WEBSOCKET_G(context);
 			printf("Accept connection %lu\n", wsconn->id);
 			wsconn->wsi = wsi;
 
 			zval_addref_p(connection);
-			add_index_zval(&intern->connections, wsconn->id, &connection);
+			add_index_zval(&intern->connections, wsconn->id, connection);
 
 			wsconn->connected = 1;
-			if (ZEND_FCI_INITIALIZED(intern->cb_accept.fci)) {
+			if (intern->callbacks[PHP_CB_ACCEPT]) {
+				user_cb = intern->callbacks[PHP_CB_ACCEPT];
 				ZVAL_NULL(&retval);
-				zval params[2] = { *server, *connection };
-				intern->cb_accept.fci.param_count = 2;
-				intern->cb_accept.fci.params = params;
-				intern->cb_accept.fci.retval = &retval;
-				if (FAILURE == zend_call_function(&intern->cb_accept.fci, &intern->cb_accept.fcc)) {
+				zval params[2];
+				ZVAL_COPY_VALUE(&params[0], this);
+				ZVAL_COPY_VALUE(&params[1], connection);
+				user_cb->fci.param_count = 2;
+				user_cb->fci.params = params;
+				user_cb->fci.retval = &retval;
+
+				printf("Ready to call accept handler\n");
+				if (FAILURE == zend_call_function(&user_cb->fci, &user_cb->fcc)) {
+					printf("Accept handler fail\n");
 					php_error_docref(NULL, E_WARNING, "Unable to call accept callback");
 				}
+				printf("Accept handler OK\n");
 
 				zval_dtor(&retval);
 			}
@@ -137,14 +168,17 @@ int callback_php(struct libwebsocket_context *context, struct libwebsocket *wsi,
 
 		case LWS_CALLBACK_RECEIVE:
 			printf("Receive data.\n");
-			if (ZEND_FCI_INITIALIZED(intern->cb_data.fci)) {
+			if (intern->callbacks[PHP_CB_DATA]) {
+				user_cb = intern->callbacks[PHP_CB_DATA];
 				ZVAL_NULL(&retval);
-				ZVAL_STRINGL(&tmp, in, len);
-				zval params[3] = { *server, *connection, tmp };
-				intern->cb_data.fci.param_count = 3;
-				intern->cb_data.fci.params = params;
-				intern->cb_data.fci.retval = &retval;
-				if (FAILURE == zend_call_function(&intern->cb_data.fci, &intern->cb_data.fcc)) {
+				zval params[3];
+				ZVAL_COPY_VALUE(&params[0], this);
+				ZVAL_COPY_VALUE(&params[1], connection);
+				ZVAL_STRINGL(&params[2], in, len);
+				user_cb->fci.param_count = 3;
+				user_cb->fci.params = params;
+				user_cb->fci.retval = &retval;
+				if (FAILURE == zend_call_function(&user_cb->fci, &user_cb->fcc)) {
 					php_error_docref(NULL, E_WARNING, "Unable to call data callback");
 				}
 
@@ -156,7 +190,6 @@ int callback_php(struct libwebsocket_context *context, struct libwebsocket *wsi,
 				}
 
 				zval_dtor(&retval);
-				zval_dtor(&tmp);
 			}
 			break;
 
@@ -164,7 +197,7 @@ int callback_php(struct libwebsocket_context *context, struct libwebsocket *wsi,
 			wsconn = (ws_connection_obj *) Z_OBJ_P(connection);
 			while (wsconn->read_ptr != wsconn->write_ptr) {
 				text = wsconn->buf[wsconn->read_ptr];
-				n = libwebsocket_write(wsi, text->val, text->len, LWS_WRITE_TEXT);
+				n = lws_write(wsi, text->val, text->len, LWS_WRITE_TEXT);
 
 				if (n < 0) {
 					lwsl_err("Write to socket %lu failed with code %d\n", wsconn->id, n);
@@ -196,33 +229,50 @@ int callback_php(struct libwebsocket_context *context, struct libwebsocket *wsi,
 			zend_hash_index_del(Z_ARRVAL(intern->connections), wsconn->id);
 			zval_delref_p(connection);
 
-			if (ZEND_FCI_INITIALIZED(intern->cb_close.fci)) {
+			if (intern->callbacks[PHP_CB_CLOSE]) {
+				user_cb = intern->callbacks[PHP_CB_CLOSE];
 				ZVAL_NULL(&retval);
-				zval params[2] = { *server, *connection };
-				intern->cb_close.fci.param_count = 2;
-				intern->cb_close.fci.params = params;
-				intern->cb_close.fci.retval = &retval;
-				if (FAILURE == zend_call_function(&intern->cb_close.fci, &intern->cb_close.fcc)) {
+				zval params[2];
+				ZVAL_COPY_VALUE(&params[0], this);
+				ZVAL_COPY_VALUE(&params[1], connection);
+				user_cb->fci.param_count = 2;
+				user_cb->fci.params = params;
+				user_cb->fci.retval = &retval;
+				if (FAILURE == zend_call_function(&user_cb->fci, &user_cb->fcc)) {
 					php_error_docref(NULL, E_WARNING, "Unable to call close callback");
 				}
 				zval_dtor(&retval);
 			}
 			break;
 
+		case LWS_CALLBACK_FILTER_NETWORK_CONNECTION:
+			/* TODO
+			sockfd = (int) in;
+			struct sockaddr_storage addr;
+			int len = sizeof(addr);
+			int port; char ipstr[64] = "";
+			getpeername(sockfd, (struct sockaddr*) &addr, &len);
+			if (addr.ss_family == AF_INET) {
+				struct sockaddr_in *s = (struct sockaddr_in *)&addr;
+				port = ntohs(s->sin_port);
+				lws_plat_inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
+			} else { // AF_INET6
+				struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
+				port = ntohs(s->sin6_port);
+				lws_plat_inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
+			}
+			*/
+			break;
+
 		case LWS_CALLBACK_SERVER_NEW_CLIENT_INSTANTIATED:
 		case LWS_CALLBACK_PROTOCOL_INIT:
 		case LWS_CALLBACK_PROTOCOL_DESTROY:
 		case LWS_CALLBACK_GET_THREAD_ID:
-		case LWS_CALLBACK_ADD_POLL_FD:
-		case LWS_CALLBACK_DEL_POLL_FD:
-		case LWS_CALLBACK_CHANGE_MODE_POLL_FD:
-		case LWS_CALLBACK_LOCK_POLL:
-		case LWS_CALLBACK_UNLOCK_POLL:
 			// Ignore
 			break;
 
 		default:
-			printf(" – Non-handled action (reason: %d)\n", reason);
+			printf(" – CB PHP Non-handled action (reason: %d)\n", reason);
 	}
 
 	return intern->exit_request == 1 ? -1 : return_code;
@@ -233,7 +283,7 @@ void php_ws_conn_close(ws_connection_obj *conn) {
 
 	conn->connected = 0;
 	printf("Send close to %lu\n", conn->id);
-	libwebsocket_write(conn->wsi, payload, strlen(payload), LWS_WRITE_CLOSE);
+	lws_write(conn->wsi, payload, strlen(payload), LWS_WRITE_CLOSE);
 }
 
 int php_ws_conn_write(ws_connection_obj *conn, zend_string *text) {
@@ -250,7 +300,7 @@ int php_ws_conn_write(ws_connection_obj *conn, zend_string *text) {
 	conn->buf[conn->write_ptr] = text;
 	conn->write_ptr = (conn->write_ptr + 1) % WEBSOCKET_CONNECTION_BUFFER_SIZE;
 
-	libwebsocket_callback_on_writable(conn->context, conn->wsi);
+	lws_callback_on_writable(conn->wsi);
 
 	return text->len;
 }
