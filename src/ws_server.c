@@ -105,7 +105,6 @@ zend_object* ws_server_create_object_handler(zend_class_entry *ce TSRMLS_DC)
 	memset(&intern->info, 0, sizeof(intern->info));
 	intern->info.uid = -1;
 	intern->info.gid = -1;
-	intern->info.port = 8080;
 	intern->info.ssl_private_key_filepath = intern->info.ssl_cert_filepath = NULL;	//FIXME HTTPS
 	intern->info.protocols = protocols;
 	intern->info.extensions = NULL;
@@ -127,9 +126,23 @@ zend_object* ws_server_create_object_handler(zend_class_entry *ce TSRMLS_DC)
 
 void ws_server_free_object_storage_handler(ws_server_obj *intern TSRMLS_DC)
 {
-	zend_object_std_dtor(&intern->std TSRMLS_CC);
+	int i;
+	printf("Server at %p", intern);
+
+	for (i = 0; i < PHP_CB_COUNT; ++i) {
+		if (NULL != intern->callbacks[i]) {
+			efree(intern->callbacks[i]);
+		}
+	}
+
+	efree(intern->info.user);
+	intern->info.user = NULL;
+
 	zval_dtor(&intern->connections);
+	zend_object_std_dtor(&intern->std TSRMLS_CC);
 	efree(intern);
+
+	efree(WEBSOCKET_G(php_obj));
 }
 
 /*--- Methods ---*/
@@ -281,7 +294,6 @@ PHP_METHOD(WS_Server, run)
 	oldMs = ms = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 	while (n >= 0 && !intern->exit_request) {
 		if (nextTick <= 0) {
-			printf("Tick from ext.\n");
 			if (intern->callbacks[PHP_CB_TICK]) {
 				zval retval;
 				ZVAL_NULL(&retval);

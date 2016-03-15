@@ -90,16 +90,15 @@ void ws_connection_free_object_storage_handler(ws_connection_obj *intern TSRMLS_
 {
 	while (intern->read_ptr != intern->write_ptr) {
 		zend_string_delref(intern->buf[intern->read_ptr]);
+		if (zend_string_refcount(intern->buf[intern->read_ptr]) < 1) {
+			zend_string_free(intern->buf[intern->read_ptr]);
+		}
+
 		intern->read_ptr = (intern->read_ptr + 1) % WEBSOCKET_CONNECTION_BUFFER_SIZE;
 	}
-	intern->context = NULL;
 
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
-
-	// FIXME Following error when uncomment this line:
-	//       0x00007ffff6756a98 in __GI_raise (sig=sig@entry=0x6) at ../sysdeps/unix/sysv/linux/raise.c:55
-	//       return INLINE_SYSCALL (tgkill, 3, pid, selftid, sig);
-	// efree(intern);
+	efree(intern);
 }
 
 /*--- Methods ---*/

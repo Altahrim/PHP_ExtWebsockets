@@ -86,7 +86,7 @@ ws_chat_room.prototype.displayMessage = function(time, data, username, noNotific
     this.room.appendChild(msg);
     this._scroll();
 
-    if (noNotification) {
+    if (true != noNotification) {
         this.chat._notify('New message from ' + username, data.msg);
     }
 
@@ -250,10 +250,6 @@ ws_chat.prototype._inputKeydown = function(event) {
 }
 
 ws_chat.prototype._notify = function(title, content) {
-    if (document.hasFocus()) {
-        console.debug('Notification ignored (cause: focus)');
-        return;
-    }
     if (!("Notification" in window)) {
         console.warning('Browser does not implement Notifications');
         return;

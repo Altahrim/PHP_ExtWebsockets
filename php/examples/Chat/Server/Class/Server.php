@@ -375,7 +375,7 @@ class Server
      * @return string
      */
     protected function replaceColors($str) {
-        return preg_replace('@#[A-F0-9]{6}|#[A-F0-9]{3}@ui', '\\0<span class="color" style="background:\\0"></span>', $str);
+        return preg_replace('@#([A-F0-9]{6}|[A-F0-9]{3})@ui', '&num;\\1<span class="color" style="background:\\0"></span>', $str);
     }
 
     public function getWsServer()

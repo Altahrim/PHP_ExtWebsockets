@@ -172,8 +172,10 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 				user_cb = intern->callbacks[PHP_CB_DATA];
 				ZVAL_NULL(&retval);
 				zval params[3];
+				// TODO Check if message is complete before calling CB
 				ZVAL_COPY_VALUE(&params[0], this);
 				ZVAL_COPY_VALUE(&params[1], connection);
+				ZVAL_COPY_VALUE(&params[2], connection);
 				ZVAL_STRINGL(&params[2], in, len);
 				user_cb->fci.param_count = 3;
 				user_cb->fci.params = params;
@@ -182,7 +184,13 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 					php_error_docref(NULL, E_WARNING, "Unable to call data callback");
 				}
 
-				// Test if different from true (or assimilated), close connection
+				// Free string if needed
+				zval_delref_p(&params[2]);
+				if (zval_refcount_p(&params[2]) < 1) {
+					zend_string_free(Z_STR(params[2]));
+				}
+
+				// If return is different from true (or assimilated), close connection
 				if (!zval_is_true(&retval)) {
 					wsconn = (ws_connection_obj *) Z_OBJ_P(connection);
 					wsconn->connected = 0;
@@ -204,6 +212,9 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 					return 1;
 				}
 				if (n < (int) text->len) {
+					// TODO Implements partial write
+					wsconn->buf[wsconn->read_ptr] = NULL;
+					wsconn->read_ptr = (wsconn->read_ptr + 1) % WEBSOCKET_CONNECTION_BUFFER_SIZE;
 					lwsl_err("Partial write\n");
 					return -1;
 				}
