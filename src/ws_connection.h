@@ -37,7 +37,6 @@ typedef struct _ws_connection_obj {
 	zend_bool connected;
 
 	// Write buffer
-	struct lws_context *context;
 	zend_string *buf[WEBSOCKET_CONNECTION_BUFFER_SIZE];
 	unsigned int read_ptr;
 	unsigned int write_ptr;

@@ -137,7 +137,6 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 			object_init_ex(connection, ws_connection_ce);
 			wsconn = (ws_connection_obj *) Z_OBJ_P(connection);
 			wsconn->id = ++intern->next_id;
-			wsconn->context = WEBSOCKET_G(context);
 			printf("Accept connection %lu\n", wsconn->id);
 			wsconn->wsi = wsi;
 
@@ -203,6 +202,11 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 
 		case LWS_CALLBACK_SERVER_WRITEABLE:
 			wsconn = (ws_connection_obj *) Z_OBJ_P(connection);
+			if (!wsconn->connected) {
+				return_code = -1;
+				break;
+			}
+
 			while (wsconn->read_ptr != wsconn->write_ptr) {
 				text = wsconn->buf[wsconn->read_ptr];
 				n = lws_write(wsi, text->val, text->len, LWS_WRITE_TEXT);
@@ -289,12 +293,11 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 	return intern->exit_request == 1 ? -1 : return_code;
 }
 
-void php_ws_conn_close(ws_connection_obj *conn) {
-	unsigned char payload[4] = "Bye";
-
+void php_ws_conn_close(ws_connection_obj *conn, zend_string *reason) {
 	conn->connected = 0;
 	printf("Send close to %lu\n", conn->id);
-	lws_write(conn->wsi, payload, strlen(payload), LWS_WRITE_CLOSE);
+	lws_close_reason(conn->wsi, LWS_CLOSE_STATUS_NORMAL, reason->val, reason->len);
+	lws_callback_on_writable(conn->wsi);
 }
 
 int php_ws_conn_write(ws_connection_obj *conn, zend_string *text) {

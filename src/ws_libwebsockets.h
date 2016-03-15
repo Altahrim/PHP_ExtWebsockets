@@ -57,7 +57,7 @@ static struct lws_protocols protocols[] = {
 /*--- Helpers ---*/
 
 //void get_token_as_array(zval *arr, struct lws *wsi);
-void php_ws_conn_close(ws_connection_obj *conn);
+void php_ws_conn_close(ws_connection_obj *conn, zend_string *reason);
 int php_ws_conn_write(ws_connection_obj *conn, zend_string *text);
 
 

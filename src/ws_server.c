@@ -127,7 +127,6 @@ zend_object* ws_server_create_object_handler(zend_class_entry *ce TSRMLS_DC)
 void ws_server_free_object_storage_handler(ws_server_obj *intern TSRMLS_DC)
 {
 	int i;
-	printf("Server at %p", intern);
 
 	for (i = 0; i < PHP_CB_COUNT; ++i) {
 		if (NULL != intern->callbacks[i]) {
@@ -269,6 +268,7 @@ PHP_METHOD(WS_Server, run)
 	int nextTick = 0;
 	struct timeval tv;
 	struct _ws_protocol_storage * context_data;
+	zend_string *text;
 
 	ZEND_PARSE_PARAMETERS_START(0, 0);
 	ZEND_PARSE_PARAMETERS_END();
@@ -317,9 +317,10 @@ PHP_METHOD(WS_Server, run)
 	}
 
 	// Disconnect users
+	text = zend_string_init(ZEND_STRL("Server terminated"), 0);
 	ZEND_HASH_FOREACH(Z_ARR(intern->connections), 0);
 		conn = (ws_connection_obj *) Z_OBJ_P(_z);
-		php_ws_conn_close(conn);
+		php_ws_conn_close(conn, text);
 		zval_delref_p(_z);
 		zend_hash_index_del(Z_ARR(intern->connections), _p->h);
 	ZEND_HASH_FOREACH_END();
