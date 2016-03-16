@@ -185,12 +185,15 @@ PHP_METHOD(WS_Connection, getUid)
 PHP_METHOD(WS_Connection, disconnect)
 {
 	ws_connection_obj *intern;
+	zend_string *reason;
 
-	ZEND_PARSE_PARAMETERS_START(0, 0);
+	ZEND_PARSE_PARAMETERS_START(0, 1);
+		Z_PARAM_OPTIONAL
+		Z_PARAM_STR(reason)
 	ZEND_PARSE_PARAMETERS_END();
 
 	intern = (ws_connection_obj *) Z_OBJ_P(getThis());
-	php_ws_conn_close(intern);
+	php_ws_conn_close(intern, reason);
 }
 /* }}} */
 

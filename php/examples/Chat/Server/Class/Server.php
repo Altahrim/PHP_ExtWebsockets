@@ -227,6 +227,7 @@ class Server
     {
         if (true === $useExternalEventLoop) {
             // Advertise the library we want to control the event loop
+            echo "Declaring external event loop…\n";
             $loop = new EventLoop($this);
             $this->server->setEventLoop($loop);
         }

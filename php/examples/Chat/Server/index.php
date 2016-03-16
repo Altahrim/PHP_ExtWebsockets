@@ -15,4 +15,4 @@ require_once __DIR__ . DIRECTORY_SEPARATOR . 'Class' . DIRECTORY_SEPARATOR . 'Ev
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'Class' . DIRECTORY_SEPARATOR . 'User.php';
 
 $serv = new \WS\Server();
-$serv->run(HAS_EV);
+$serv->run(false/*HAS_EV*/);
