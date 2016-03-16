@@ -83,10 +83,12 @@ void register_ws_server_class(TSRMLS_DC)
 	memcpy(&ws_server_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	ws_server_object_handlers.free_obj = (zend_object_free_obj_t) ws_server_free_object_storage_handler;
 
-	zend_declare_class_constant_long(ws_server_ce, "ON_ACCEPT", sizeof("ON_ACCEPT") - 1, PHP_CB_ACCEPT);
-	zend_declare_class_constant_long(ws_server_ce, "ON_CLOSE", sizeof("ON_CLOSE") - 1, PHP_CB_CLOSE);
-	zend_declare_class_constant_long(ws_server_ce, "ON_DATA", sizeof("ON_DATA") - 1, PHP_CB_DATA);
-	zend_declare_class_constant_long(ws_server_ce, "ON_TICK", sizeof("ON_TICK") - 1, PHP_CB_TICK);
+	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_ACCEPT"), PHP_CB_ACCEPT);
+	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_CLOSE"), PHP_CB_CLOSE);
+	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_DATA"), PHP_CB_DATA);
+	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_TICK"), PHP_CB_TICK);
+	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_FILTER_CONNECTION"), PHP_CB_FILTER_CONNECTION);
+	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_FILTER_HEADERS"), PHP_CB_FILTER_HEADERS);
 }
 
 /*--- Handlers ---*/

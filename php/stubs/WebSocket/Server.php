@@ -2,10 +2,35 @@
 namespace WebSocket;
 
 class Server {
+    /**
+     * Event fired when a new connection is established
+     */
     const ON_ACCEPT = null;
+
+    /**
+     * Event fired when new data are received
+     */
     const ON_DATA = null;
+
+    /**
+     * Event fired when a connection is closed
+     */
     const ON_CLOSE = null;
+
+    /**
+     * Event fired on periodic tick
+     */
     const ON_TICK = null;
+
+    /**
+     * Event fired before a connection is accepted. It allows to filter clients by headers
+     */
+    const ON_FILTER_HEADERS = null;
+
+    /**
+     * Event fired before a connection is accepted. It allows to filter clients by IP and port
+     */
+    const ON_FILTER_CONNECTION = null;
 
     /**
      * Constructor

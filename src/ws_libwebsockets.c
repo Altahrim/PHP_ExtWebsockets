@@ -108,20 +108,51 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 			printf("Destroy WSI\n");
 			break;
 
-		case LWS_CALLBACK_FILTER_PROTOCOL_CONNECTION:
-			/*
-			printf("Filter Protocol Connection\n");
-			if (intern->cb_filter_headers->fci) {
+		case LWS_CALLBACK_FILTER_NETWORK_CONNECTION:
+			if (intern->callbacks[PHP_CB_FILTER_CONNECTION]) {
+				user_cb = intern->callbacks[PHP_CB_FILTER_CONNECTION];
+				int sockfd = (int) in;
+				struct sockaddr_storage addr;
+				int len = sizeof(addr);
+				int port; char ipstr[64] = "";
+				getpeername(sockfd, (struct sockaddr*) &addr, &len);
+				if (addr.ss_family == AF_INET) {
+					struct sockaddr_in *s = (struct sockaddr_in *)&addr;
+					port = ntohs(s->sin_port);
+					lws_plat_inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
+				} else { // AF_INET6
+					struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
+					port = ntohs(s->sin6_port);
+					lws_plat_inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
+				}
 
+				ZVAL_NULL(&retval);
+				zval params[2];
+				ZVAL_STRINGL(&params[0], ipstr, len);
+				ZVAL_LONG(&params[1], port);
+				user_cb->fci.param_count = 2;
+				user_cb->fci.params = params;
+				user_cb->fci.retval = &retval;
+				if (FAILURE == zend_call_function(&user_cb->fci, &user_cb->fcc)) {
+					php_error_docref(NULL, E_WARNING, "Unable to call close callback");
+				}
+				zval_dtor(&retval);
+			}
+			break;
+
+		case LWS_CALLBACK_FILTER_PROTOCOL_CONNECTION:
+			if (intern->callbacks[PHP_CB_FILTER_HEADERS]) {
+				user_cb = intern->callbacks[PHP_CB_FILTER_HEADERS];
 				ZVAL_FALSE(&retval);
 				zval params[2];
 				get_token_as_array(&params[0], wsi);
 				ZVAL_COPY_VALUE(&params[1], this);
-				intern->cb_filter_headers->fci.param_count = 2;
-				intern->cb_filter_headers->fci.params = params;
-				intern->cb_filter_headers->fci.retval = &retval;
-				if (FAILURE == zend_call_function(&intern->cb_filter_headers->fci, &intern->cb_filter_headers->fcc)) {
-					php_error_docref(NULL, E_WARNING, "Unable to call filter headers callback");
+				user_cb->fci.param_count = 2;
+				user_cb->fci.params = params;
+				user_cb->fci.retval = &retval;
+				if (FAILURE == zend_call_function(&user_cb->fci, &user_cb->fcc)) {
+					printf("Filter handler fail\n");
+					php_error_docref(NULL, E_WARNING, "Unable to call accept callback");
 				}
 
 				if (!zval_is_true(&retval)) {
@@ -130,7 +161,6 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 
 				zval_dtor(&retval);
 			}
-			*/
 			break;
 
 		case LWS_CALLBACK_ESTABLISHED:
@@ -258,25 +288,6 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 				}
 				zval_dtor(&retval);
 			}
-			break;
-
-		case LWS_CALLBACK_FILTER_NETWORK_CONNECTION:
-			/* TODO
-			sockfd = (int) in;
-			struct sockaddr_storage addr;
-			int len = sizeof(addr);
-			int port; char ipstr[64] = "";
-			getpeername(sockfd, (struct sockaddr*) &addr, &len);
-			if (addr.ss_family == AF_INET) {
-				struct sockaddr_in *s = (struct sockaddr_in *)&addr;
-				port = ntohs(s->sin_port);
-				lws_plat_inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
-			} else { // AF_INET6
-				struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
-				port = ntohs(s->sin6_port);
-				lws_plat_inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
-			}
-			*/
 			break;
 
 		case LWS_CALLBACK_SERVER_NEW_CLIENT_INSTANTIATED:

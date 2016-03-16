@@ -47,6 +47,8 @@ class Server
         $this->server->on(\WebSocket\Server::ON_ACCEPT, [$this, 'onAccept']);
         $this->server->on(\WebSocket\Server::ON_CLOSE, [$this, 'onClose']);
         $this->server->on(\WebSocket\Server::ON_DATA, [$this, 'onData']);
+        $this->server->on(\WebSocket\Server::ON_FILTER_CONNECTION, [$this, 'onFilterConn']);
+        $this->server->on(\WebSocket\Server::ON_FILTER_HEADERS, [$this, 'onFilterHeaders']);
 
         // Build smileys array
         $smileys = [];
@@ -180,6 +182,36 @@ class Server
         }
 
         return $continue;
+    }
+
+    public function onFilterConn($clientIp, $clientPort): bool {
+        // As in onFilterHeaders, you can filter clients based on IP address and port
+
+        return true;
+    }
+
+    /**
+     * Filter connections by headers
+     *
+     * @param array $headers Headers as received by the library (lowercase keys)
+     * @param \WebSocket\Server $serv
+     * @return boolean True to accept connection, false otherwise
+     */
+    public function onFilterHeaders(array $headers, \WebSocket\Server $serv): bool {
+        // This function can be used to filter clients before the connection is established
+
+        // Filter on User-Agent
+        if (!isset($headers['user-agent']) || false !== strpos($headers['user-agent'], 'SomeBot')) {
+            return false;
+        }
+
+        // Filter on Origin
+        if (!isset($headers['origin']) || false !== strpos($headers['origin'], 'Some mysterious origin')) {
+            return false;
+        }
+
+        // Then you can grant access
+        return true;
     }
 
     /**
