@@ -3,7 +3,7 @@ php:
     - 7.0
 
 env:
-    - LIBWEBSOCKETS_VERSION=v1.7.3
+    - LIBWEBSOCKETS_VERSION=1.7.3
 
 install:
     - sudo apt-get install -y lcov
