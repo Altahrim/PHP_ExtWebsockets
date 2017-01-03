@@ -17,10 +17,17 @@ class User
 
     const USERNAME_MAX_LENGTH = 50;
 
+    /**
+     * Currently used usernames
+     * @var string[]
+     */
     private static $usernames = [];
 
     /**
      * Constructor
+     *
+     * @param \WebSocket\Connection $connection
+     * @param string $username
      */
     public function __construct(\WebSocket\Connection $connection, $username)
     {
@@ -41,6 +48,7 @@ class User
     /**
      * Return username
      *
+     * @param string $username
      * @return string
      */
     public function setUsername($username)
@@ -68,8 +76,13 @@ class User
             $this->username = mb_substr($username, 0, self::USERNAME_MAX_LENGTH - ++$length) . $suffix;
         }
         self::$usernames[$this->username] = true;
+
+        return $this->username;
     }
 
+    /**
+     * Free an username
+     */
     public function unsetUsername() {
         if (isset(self::$usernames[$this->username])) {
             unset(self::$usernames[$this->username]);

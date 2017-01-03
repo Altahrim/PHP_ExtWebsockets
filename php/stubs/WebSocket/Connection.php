@@ -9,29 +9,28 @@ class Connection {
 
     /**
      * Close current connection
-     *
-     * @return void
      */
     public function disconnect() {}
 
     /**
-     * Send text to remote client
+     * Send data to remote client
      *
      * @param string $str Text
-     * @return void
      */
-    public function sendText($str) {}
+    public function send($str) {}
 
     /**
-     * Send JSON to remote client
+     * Send data to remote client as JSON string
      *
-     * @param mixed $payload Unencoded payload
-     * @return void
+     * @param mixed $payload Raw payload
      */
-    public function sendJson($payload) {}
+    public function sendAsJson($payload) {}
 
-
-
-    public function sendBinary($payload) {}
-    public function sendFile($file) {}
+    /**
+     * Return connection UID
+     * @return string
+     */
+    public function getUid():string {
+        return '';
+    }
 }

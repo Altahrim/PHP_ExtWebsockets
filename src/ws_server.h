@@ -21,32 +21,28 @@
 
 #include <php.h>
 #include <libwebsockets.h>
+#include "ws_structures.h"
 
 /***** Class \WebSocket\Server *****/
 
 /*--- Definitions ---*/
 
-enum php_callbacks {
-	PHP_CB_ACCEPT,
-	PHP_CB_CLOSE,
+enum php_server_callbacks {
+	PHP_CB_SERVER_ACCEPT,
+	PHP_CB_SERVER_CLOSE,
 
-	PHP_CB_DATA,
+	PHP_CB_SERVER_DATA,
 
-	PHP_CB_FILTER_CONNECTION,
-	PHP_CB_FILTER_HEADERS,
+	PHP_CB_SERVER_FILTER_CONNECTION,
+	PHP_CB_SERVER_FILTER_HEADERS,
 
-	PHP_CB_PING,
-	PHP_CB_TICK,
+	PHP_CB_SERVER_PING,
+	PHP_CB_SERVER_TICK,
 
-	PHP_CB_COUNT
+	PHP_CB_SERVER_COUNT
 };
 
 /*--- Storage ---*/
-
-typedef struct _ws_callback {
-	zend_fcall_info fci;
-	zend_fcall_info_cache fcc;
-} ws_callback;
 
 typedef struct _ws_server_obj {
 	zend_object std;
@@ -55,7 +51,7 @@ typedef struct _ws_server_obj {
 	struct lws_context_creation_info info;
 
 	// Available PHP callbacks
-	ws_callback *callbacks[PHP_CB_COUNT];
+	ws_callback *callbacks[PHP_CB_SERVER_COUNT];
 
 	// External event loop
 	zval *eventloop;

@@ -109,8 +109,8 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 			break;
 
 		case LWS_CALLBACK_FILTER_NETWORK_CONNECTION:
-			if (intern->callbacks[PHP_CB_FILTER_CONNECTION]) {
-				user_cb = intern->callbacks[PHP_CB_FILTER_CONNECTION];
+			if (intern->callbacks[PHP_CB_SERVER_FILTER_CONNECTION]) {
+				user_cb = intern->callbacks[PHP_CB_SERVER_FILTER_CONNECTION];
 				int sockfd = (int) in;
 				struct sockaddr_storage addr;
 				int len = sizeof(addr);
@@ -130,10 +130,10 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 				zval params[2];
 				ZVAL_STRINGL(&params[0], ipstr, len);
 				ZVAL_LONG(&params[1], port);
-				user_cb->fci.param_count = 2;
-				user_cb->fci.params = params;
-				user_cb->fci.retval = &retval;
-				if (FAILURE == zend_call_function(&user_cb->fci, &user_cb->fcc)) {
+				user_cb->fci->param_count = 2;
+				user_cb->fci->params = params;
+				user_cb->fci->retval = &retval;
+				if (SUCCESS != zend_call_function(user_cb->fci, user_cb->fcc TSRMLS_CC)) {
 					php_error_docref(NULL, E_WARNING, "Unable to call close callback");
 				}
 				zval_dtor(&retval);
@@ -141,18 +141,17 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 			break;
 
 		case LWS_CALLBACK_FILTER_PROTOCOL_CONNECTION:
-			if (intern->callbacks[PHP_CB_FILTER_HEADERS]) {
-				user_cb = intern->callbacks[PHP_CB_FILTER_HEADERS];
+			if (intern->callbacks[PHP_CB_SERVER_FILTER_HEADERS]) {
+				user_cb = intern->callbacks[PHP_CB_SERVER_FILTER_HEADERS];
 				ZVAL_FALSE(&retval);
 				zval params[2];
 				get_token_as_array(&params[0], wsi);
 				ZVAL_COPY_VALUE(&params[1], this);
-				user_cb->fci.param_count = 2;
-				user_cb->fci.params = params;
-				user_cb->fci.retval = &retval;
-				if (FAILURE == zend_call_function(&user_cb->fci, &user_cb->fcc)) {
-					printf("Filter handler fail\n");
-					php_error_docref(NULL, E_WARNING, "Unable to call accept callback");
+				user_cb->fci->param_count = 2;
+				user_cb->fci->params = params;
+				user_cb->fci->retval = &retval;
+				if (SUCCESS != zend_call_function(user_cb->fci, user_cb->fcc TSRMLS_CC)) {
+					php_error_docref(NULL, E_WARNING, "Unable to call filter callback");
 				}
 
 				if (!zval_is_true(&retval)) {
@@ -174,31 +173,31 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 			add_index_zval(&intern->connections, wsconn->id, connection);
 
 			wsconn->connected = 1;
-			if (intern->callbacks[PHP_CB_ACCEPT]) {
-				user_cb = intern->callbacks[PHP_CB_ACCEPT];
+
+			if (intern->callbacks[PHP_CB_SERVER_ACCEPT]) {
+				user_cb = intern->callbacks[PHP_CB_SERVER_ACCEPT];
 				ZVAL_NULL(&retval);
 				zval params[2];
 				ZVAL_COPY_VALUE(&params[0], this);
 				ZVAL_COPY_VALUE(&params[1], connection);
-				user_cb->fci.param_count = 2;
-				user_cb->fci.params = params;
-				user_cb->fci.retval = &retval;
+				user_cb->fci->param_count = 2;
+				user_cb->fci->params = params;
+				user_cb->fci->retval = &retval;
+				user_cb->fci->no_separation = (zend_bool) 0;
 
 				printf("Ready to call accept handler\n");
-				if (FAILURE == zend_call_function(&user_cb->fci, &user_cb->fcc)) {
-					printf("Accept handler fail\n");
-					php_error_docref(NULL, E_WARNING, "Unable to call accept callback");
+				int res = zend_call_function(user_cb->fci, user_cb->fcc TSRMLS_CC);
+				if (SUCCESS != res) {
+					php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to call accept callback");
 				}
-				printf("Accept handler OK\n");
-
 				zval_dtor(&retval);
 			}
 			break;
 
 		case LWS_CALLBACK_RECEIVE:
 			printf("Receive data.\n");
-			if (intern->callbacks[PHP_CB_DATA]) {
-				user_cb = intern->callbacks[PHP_CB_DATA];
+			if (intern->callbacks[PHP_CB_SERVER_DATA]) {
+				user_cb = intern->callbacks[PHP_CB_SERVER_DATA];
 				ZVAL_NULL(&retval);
 				zval params[3];
 				// TODO Check if message is complete before calling CB
@@ -206,10 +205,10 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 				ZVAL_COPY_VALUE(&params[1], connection);
 				ZVAL_COPY_VALUE(&params[2], connection);
 				ZVAL_STRINGL(&params[2], in, len);
-				user_cb->fci.param_count = 3;
-				user_cb->fci.params = params;
-				user_cb->fci.retval = &retval;
-				if (FAILURE == zend_call_function(&user_cb->fci, &user_cb->fcc)) {
+				user_cb->fci->param_count = 3;
+				user_cb->fci->params = params;
+				user_cb->fci->retval = &retval;
+				if (SUCCESS != zend_call_function(user_cb->fci, user_cb->fcc TSRMLS_CC)) {
 					php_error_docref(NULL, E_WARNING, "Unable to call data callback");
 				}
 
@@ -274,16 +273,16 @@ int callback_ext_php(struct lws *wsi, enum lws_callback_reasons reason, void *us
 			zend_hash_index_del(Z_ARRVAL(intern->connections), wsconn->id);
 			zval_delref_p(connection);
 
-			if (intern->callbacks[PHP_CB_CLOSE]) {
-				user_cb = intern->callbacks[PHP_CB_CLOSE];
+			if (intern->callbacks[PHP_CB_SERVER_CLOSE]) {
+				user_cb = intern->callbacks[PHP_CB_SERVER_CLOSE];
 				ZVAL_NULL(&retval);
 				zval params[2];
 				ZVAL_COPY_VALUE(&params[0], this);
 				ZVAL_COPY_VALUE(&params[1], connection);
-				user_cb->fci.param_count = 2;
-				user_cb->fci.params = params;
-				user_cb->fci.retval = &retval;
-				if (FAILURE == zend_call_function(&user_cb->fci, &user_cb->fcc)) {
+				user_cb->fci->param_count = 2;
+				user_cb->fci->params = params;
+				user_cb->fci->retval = &retval;
+				if (SUCCESS != zend_call_function(user_cb->fci, user_cb->fcc TSRMLS_CC)) {
 					php_error_docref(NULL, E_WARNING, "Unable to call close callback");
 				}
 				zval_dtor(&retval);

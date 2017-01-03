@@ -20,14 +20,14 @@ interface EventLoopInterface {
      * @param int $flags
      * @return bool
      */
-    public function add($fd, $flags) {}
+    public function add($fd, int $flags);
 
     /**
      * Removes a socket from watchlist
      * @param resource $fd
      * @return bool
      */
-    public function delete($fd) {}
+    public function delete($fd);
 
     /**
      * Changes mode for a specified socket
@@ -35,17 +35,17 @@ interface EventLoopInterface {
      * @param int $flags
      * @return bool
      */
-    public function setMode($fd, $flags) {}
+    public function setMode($fd, int $flags);
 
     /**
      * Lock pool
      * @return bool
      */
-    public function lock() {}
+    public function lock();
 
     /**
      * Unlock pool
      * @return bool
      */
-    public function unlock() {}
+    public function unlock();
 }

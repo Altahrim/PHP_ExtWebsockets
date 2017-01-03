@@ -16,53 +16,56 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef WEBSOCKET_CONNECTION_H
-#define WEBSOCKET_CONNECTION_H
+#ifndef WEBSOCKET_CLIENT_H
+#define WEBSOCKET_CLIENT_H
 
 #include <php.h>
-#include "ws_constants.h"
 #include <libwebsockets.h>
+#include "ws_structures.h"
 
-/***** Class \WebSocket\Connection *****/
+/***** Class \WebSocket\Client *****/
+
+/*--- Definitions ---*/
+
+enum php_client_callbacks {
+	PHP_CB_CLIENT_ACCEPT,
+	PHP_CB_CLIENT_CLOSE,
+
+	PHP_CB_CLIENT_DATA,
+
+	PHP_CB_CLIENT_COUNT
+};
 
 /*--- Storage ---*/
 
-typedef struct _ws_connection_obj {
+typedef struct _ws_client_obj {
 	zend_object std;
 
-	// ID (unique on server)
-	zend_ulong id;
+	// Available PHP callbacks
+	ws_callback *callbacks[PHP_CB_CLIENT_COUNT];
+} ws_client_obj;
 
-	// Connection state (Connected/Disconnected)
-	zend_bool connected;
+/*--- Methods ---*/
 
-	// Write buffer
-	zend_string *buf[WEBSOCKET_CONNECTION_BUFFER_SIZE];
-	unsigned int read_ptr;
-	unsigned int write_ptr;
+zend_class_entry *ws_client_ce;
+zend_object_handlers ws_client_object_handlers;
 
-	// LibWebSockets context
-	struct lws *wsi;
-} ws_connection_obj;
-
-/*--- Definition ---*/
-
-zend_class_entry *ws_connection_ce;
-zend_object_handlers ws_connection_object_handlers;
-
-PHP_METHOD(WS_Connection, send);
-PHP_METHOD(WS_Connection, sendAsJson);
-PHP_METHOD(WS_Connection, isConnected);
-PHP_METHOD(WS_Connection, getUid);
-PHP_METHOD(WS_Connection, disconnect);
+PHP_METHOD(WS_Client, __construct);
+PHP_METHOD(WS_Client, on);
+PHP_METHOD(WS_Client, connect);
+PHP_METHOD(WS_Client, send);
+PHP_METHOD(WS_Client, sendAsJson);
+PHP_METHOD(WS_Client, isConnected);
+PHP_METHOD(WS_Client, disconnect);
 
 /*--- Handlers ---*/
 
-zend_object* ws_connection_create_object_handler(zend_class_entry *ce TSRMLS_DC);
-void ws_connection_free_object_storage_handler(ws_connection_obj *intern TSRMLS_DC);
-void register_ws_connection_class(TSRMLS_DC);
+zend_object* ws_client_create_object_handler(zend_class_entry *ce TSRMLS_DC);
+void ws_client_free_object_storage_handler(ws_client_obj *intern TSRMLS_DC);
+void register_ws_client_class(TSRMLS_DC);
 
-#endif /* WEBSOCKET_CONNECTION_H */
+
+#endif /* WEBSOCKET_CLIENT_H */
 
 /*
  * Local variables:

@@ -83,12 +83,12 @@ void register_ws_server_class(TSRMLS_DC)
 	memcpy(&ws_server_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	ws_server_object_handlers.free_obj = (zend_object_free_obj_t) ws_server_free_object_storage_handler;
 
-	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_ACCEPT"), PHP_CB_ACCEPT);
-	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_CLOSE"), PHP_CB_CLOSE);
-	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_DATA"), PHP_CB_DATA);
-	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_TICK"), PHP_CB_TICK);
-	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_FILTER_CONNECTION"), PHP_CB_FILTER_CONNECTION);
-	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_FILTER_HEADERS"), PHP_CB_FILTER_HEADERS);
+	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_ACCEPT"), PHP_CB_SERVER_ACCEPT);
+	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_CLOSE"), PHP_CB_SERVER_CLOSE);
+	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_DATA"), PHP_CB_SERVER_DATA);
+	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_TICK"), PHP_CB_SERVER_TICK);
+	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_FILTER_CONNECTION"), PHP_CB_SERVER_FILTER_CONNECTION);
+	zend_declare_class_constant_long(ws_server_ce, ZEND_STRL("ON_FILTER_HEADERS"), PHP_CB_SERVER_FILTER_HEADERS);
 }
 
 /*--- Handlers ---*/
@@ -113,7 +113,7 @@ zend_object* ws_server_create_object_handler(zend_class_entry *ce TSRMLS_DC)
 	intern->info.options = 0;
 
 	intern->exit_request = 0;
-	for (i = 0; i < PHP_CB_COUNT; ++i) {
+	for (i = 0; i < PHP_CB_SERVER_COUNT; ++i) {
 		intern->callbacks[i] = NULL;
 	}
 
@@ -130,8 +130,11 @@ void ws_server_free_object_storage_handler(ws_server_obj *intern TSRMLS_DC)
 {
 	int i;
 
-	for (i = 0; i < PHP_CB_COUNT; ++i) {
+	for (i = 0; i < PHP_CB_SERVER_COUNT; ++i) {
 		if (NULL != intern->callbacks[i]) {
+		    Z_DELREF(intern->callbacks[i]->fci->function_name);
+			efree(intern->callbacks[i]->fci);
+			efree(intern->callbacks[i]->fcc);
 			efree(intern->callbacks[i]);
 		}
 	}
@@ -296,14 +299,14 @@ PHP_METHOD(WS_Server, run)
 	oldMs = ms = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 	while (n >= 0 && !intern->exit_request) {
 		if (nextTick <= 0) {
-			if (intern->callbacks[PHP_CB_TICK]) {
+			if (intern->callbacks[PHP_CB_SERVER_TICK]) {
 				zval retval;
 				ZVAL_NULL(&retval);
 				zval params[1] = { *getThis() };
-				intern->callbacks[PHP_CB_TICK]->fci.param_count = 1;
-				intern->callbacks[PHP_CB_TICK]->fci.params = params;
-				intern->callbacks[PHP_CB_TICK]->fci.retval = &retval;
-				if (FAILURE == zend_call_function(&intern->callbacks[PHP_CB_TICK]->fci, &intern->callbacks[PHP_CB_TICK]->fcc)) {
+				intern->callbacks[PHP_CB_SERVER_TICK]->fci->param_count = 1;
+				intern->callbacks[PHP_CB_SERVER_TICK]->fci->params = params;
+				intern->callbacks[PHP_CB_SERVER_TICK]->fci->retval = &retval;
+				if (SUCCESS != zend_call_function(intern->callbacks[PHP_CB_SERVER_TICK]->fci, intern->callbacks[PHP_CB_SERVER_TICK]->fcc TSRMLS_CC)) {
 					php_error_docref(NULL, E_WARNING, "Unable to call tick callback");
 				}
 			}
@@ -378,26 +381,34 @@ PHP_METHOD(WS_Server, broadcast)
 }
 /* }}} */
 
-/* {{{ proto bool WebSocket\Server::on(string event, callback callback)
+/* {{{ proto bool WebSocket\Server::on(int event, callback callback)
 	Register a callback for specified event */
 PHP_METHOD(WS_Server, on)
 {
 	ws_server_obj *intern;
-	ws_callback *cb = emalloc(sizeof(ws_callback));
+    zend_fcall_info fci = empty_fcall_info;
+    zend_fcall_info_cache fcc = empty_fcall_info_cache;
 	long event;
 
 	ZEND_PARSE_PARAMETERS_START(2, 2)
 		Z_PARAM_LONG(event)
-		Z_PARAM_FUNC(cb->fci, cb->fcc)
+		Z_PARAM_FUNC_EX(fci, fcc, 1, 0)
 	ZEND_PARSE_PARAMETERS_END();
 
-	if (event < 0 || event >= PHP_CB_COUNT) {
+	if (event < 0 || event >= PHP_CB_SERVER_COUNT || !ZEND_FCI_INITIALIZED(fci)) {
 		php_error_docref(NULL, E_WARNING, "Try to add an invalid callback");
 		RETURN_FALSE;
 	}
 
 	intern = (ws_server_obj *) Z_OBJ_P(getThis());
-	intern->callbacks[event] = cb;
+	intern->callbacks[event] = emalloc(sizeof(ws_callback));
+	intern->callbacks[event]->fci = emalloc(sizeof(zend_fcall_info));
+	intern->callbacks[event]->fcc = emalloc(sizeof(zend_fcall_info_cache));
+
+	memcpy(intern->callbacks[event]->fci, &fci, sizeof(zend_fcall_info));
+	memcpy(intern->callbacks[event]->fcc, &fcc, sizeof(zend_fcall_info_cache));
+
+	Z_ADDREF(intern->callbacks[event]->fci->function_name);
 
 	RETURN_TRUE;
 }

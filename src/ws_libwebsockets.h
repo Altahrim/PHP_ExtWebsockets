@@ -46,12 +46,25 @@ struct _ws_protocol_storage {
 
 static struct lws_protocols protocols[] = {
 	{
-		"websockets",								/* name */
-		callback_ext_php,							/* callback */
-		sizeof(struct _ws_protocol_storage),	/* per_session_data_size */
-		0											/* max frame size / rx buffer */
+		"php_userspace",					/* Name */
+		callback_ext_php,					/* Callback */
+		sizeof(struct _ws_protocol_storage)	/* Per_session_data_size */
 	},
-	{ NULL, NULL, 0, 0 }
+	{ NULL, NULL, 0 }
+};
+
+static const struct lws_extension exts[] = {
+	{
+		"permessage-deflate",
+		lws_extension_callback_pm_deflate,
+		"permessage-deflate; client_no_context_takeover; client_max_window_bits"
+	},
+	{
+		"deflate-frame",
+		lws_extension_callback_pm_deflate,
+		"deflate_frame"
+	},
+	{ NULL, NULL, NULL }
 };
 
 /*--- Helpers ---*/

@@ -21,6 +21,7 @@ class EventLoop implements \WebSocket\EventLoopInterface
 
     /**
      * Constructor
+     * @param \WS\Server $server
      */
     public function __construct(\WS\Server $server)
     {

@@ -16,53 +16,16 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef WEBSOCKET_CONNECTION_H
-#define WEBSOCKET_CONNECTION_H
+#ifndef WEBSOCKET_STRUCTURE_H
+#define WEBSOCKET_STRUCTURE_H
 
-#include <php.h>
-#include "ws_constants.h"
-#include <libwebsockets.h>
+/* Callback structure */
+typedef struct _ws_callback {
+	zend_fcall_info *fci;
+	zend_fcall_info_cache *fcc;
+} ws_callback;
 
-/***** Class \WebSocket\Connection *****/
-
-/*--- Storage ---*/
-
-typedef struct _ws_connection_obj {
-	zend_object std;
-
-	// ID (unique on server)
-	zend_ulong id;
-
-	// Connection state (Connected/Disconnected)
-	zend_bool connected;
-
-	// Write buffer
-	zend_string *buf[WEBSOCKET_CONNECTION_BUFFER_SIZE];
-	unsigned int read_ptr;
-	unsigned int write_ptr;
-
-	// LibWebSockets context
-	struct lws *wsi;
-} ws_connection_obj;
-
-/*--- Definition ---*/
-
-zend_class_entry *ws_connection_ce;
-zend_object_handlers ws_connection_object_handlers;
-
-PHP_METHOD(WS_Connection, send);
-PHP_METHOD(WS_Connection, sendAsJson);
-PHP_METHOD(WS_Connection, isConnected);
-PHP_METHOD(WS_Connection, getUid);
-PHP_METHOD(WS_Connection, disconnect);
-
-/*--- Handlers ---*/
-
-zend_object* ws_connection_create_object_handler(zend_class_entry *ce TSRMLS_DC);
-void ws_connection_free_object_storage_handler(ws_connection_obj *intern TSRMLS_DC);
-void register_ws_connection_class(TSRMLS_DC);
-
-#endif /* WEBSOCKET_CONNECTION_H */
+#endif /* WEBSOCKET_STRUCTURE_H */
 
 /*
  * Local variables:

@@ -23,17 +23,21 @@ class Server
 
     /**
      * History
-     * @var Array
+     * @var array
      */
     private $history = [];
 
     /**
-     * Smileys (builded at construct)
+     * Smileys (built at construct)
      * @var array
      */
     private $smileys = [
-        '☺' => [':)', ':-)', '=)'],
-        '☹' => [':(', ':-(', '=(']
+        '🙂' => [':)', ':-)', '=)'],
+        '😇' => ['O:)', 'O:-)'],
+        '🙁' => [':(', ':-(', '=('],
+        '😮' => [':o', ':-o'],
+        '😐' => [':|', ':-|'],
+        '😛' => [':p', ':-p', ':P', ':-P']
     ];
 
 
@@ -60,10 +64,15 @@ class Server
         $this->smileys = $smileys;
     }
 
-    public function onAccept(\WebSocket\Server $serv, \WebSocket\Connection $conn) {
+    /**
+     * Handle new connection
+     *
+     * @param \WebSocket\Server $server
+     * @param \WebSocket\Connection $conn
+     */
+    public function onAccept(\WebSocket\Server $server, \WebSocket\Connection $conn) {
         $time = time();
         echo "New client accepted\n";
-
         $newUser = new \WS\User($conn, 'User ' . $conn->getUid());
 
         $list = [];
@@ -74,7 +83,7 @@ class Server
             ];
         }
 
-        // Send walcome message
+        // Send welcome message
         $msg = $this->buildMessage('welcome', [
             'uid'      => $conn->getUid(),
             'topic'    => $this->topic,
@@ -82,19 +91,25 @@ class Server
             'users'    => $list,
             'history'  => $this->history
         ], $time, false);
-        $conn->sendJson($msg);
+        $conn->sendAsJson($msg);
 
         // Introduce to others
         $msg = $this->buildMessage('connect', [
             'uid'      => $conn->getUid(),
             'username' => 'User ' . $conn->getUid(),
         ], $time);
-        $serv->broadcast($msg, $conn->getUid());
+        $server->broadcast($msg);
 
         $this->connections[$conn->getUid()] = $newUser;
     }
 
-    public function onClose(\WebSocket\Server $serv, \WebSocket\Connection $conn) {
+    /**
+     * Handle disconnect
+     *
+     * @param \WebSocket\Server $server
+     * @param \WebSocket\Connection $conn
+     */
+    public function onClose(\WebSocket\Server $server, \WebSocket\Connection $conn) {
         $time = time();
 
         $this->connections[$conn->getUid()]->unsetUsername();
@@ -102,10 +117,18 @@ class Server
         $msg = $this->buildMessage('disconnect', [
             'uid' => $conn->getUid()
         ], $time);
-        $serv->broadcast($msg);
+        $server->broadcast($msg);
     }
 
-    public function onData(\WebSocket\Server $serv, \WebSocket\Connection $conn, $message) {
+    /**
+     * Handle new messages
+     *
+     * @param \WebSocket\Server $server
+     * @param \WebSocket\Connection $conn
+     * @param string $message
+     * @return bool
+     */
+    public function onData(\WebSocket\Server $server, \WebSocket\Connection $conn, $message): bool {
         $time = time();
         echo "Got message! \"$message\"\n";
 
@@ -118,7 +141,7 @@ class Server
             switch ($cmd[0]) {
                 case '/shutdown':
                     // You shouldn't keep this one in production…
-                    $serv->stop();
+                    $server->stop();
                     break;
                 case '/quit':
                     $continue = false;
@@ -130,14 +153,14 @@ class Server
                             'uid'   => $conn->getUid(),
                             'topic' => $this->topic
                         ], $time, true);
-                        $serv->broadcast($msg);
+                        $server->broadcast($msg);
                     }
                     break;
                 case '/help':
                     $msg = $this->buildMessage('event', [
                         'text' => $this->connections[$conn->getUid()]->getUsername() . ' would like some help but as I am too lazy to implement it, can someone help him?'
                     ], $time, true);
-                    $serv->broadcast($msg);
+                    $server->broadcast($msg);
                     break;
                 case '/nick':
                     $user = $this->connections[$conn->getUid()];
@@ -146,20 +169,20 @@ class Server
                         'uid' => $conn->getUid(),
                         'username' => $user->getUsername()
                     ], $time, true);
-                    $serv->broadcast($msg);
+                    $server->broadcast($msg);
                     break;
                 case '/kick':
                     $msg = $this->buildMessage('alert', [
                         'result' => 'Hey! Why do you try to kick people?'
                     ], $time, false);
-                    $conn->sendJson($msg);
+                    $conn->sendAsJson($msg);
                     break;
                 case '/me':
                     $message = $this->connections[$conn->getUid()]->getUsername() . ' ' . htmlspecialchars($cmd[1]);
                     $msg = $this->buildMessage('event', [
                         'text' => $message,
                     ], $time, true);
-                    $serv->broadcast($msg);
+                    $server->broadcast($msg);
                     $this->history[] = [$time, $message];
                     break;
                 default:
@@ -177,16 +200,21 @@ class Server
                 ];
                 $this->history[] = [$time, $message, $this->connections[$conn->getUid()]->getUsername()];
                 $msg = $this->buildMessage('msg', $message, $time);
-                $serv->broadcast($msg);
+                $server->broadcast($msg);
             }
         }
 
         return $continue;
     }
 
+    /**
+     * Filter clients based on IP and port
+     *
+     * @param $clientIp
+     * @param $clientPort
+     * @return bool
+     */
     public function onFilterConn($clientIp, $clientPort): bool {
-        // As in onFilterHeaders, you can filter clients based on IP address and port
-
         return true;
     }
 
@@ -194,10 +222,10 @@ class Server
      * Filter connections by headers
      *
      * @param array $headers Headers as received by the library (lowercase keys)
-     * @param \WebSocket\Server $serv
+     * @param \WebSocket\Server $server
      * @return boolean True to accept connection, false otherwise
      */
-    public function onFilterHeaders(array $headers, \WebSocket\Server $serv): bool {
+    public function onFilterHeaders(array $headers, \WebSocket\Server $server): bool {
         // This function can be used to filter clients before the connection is established
 
         // Filter on User-Agent
@@ -217,12 +245,17 @@ class Server
     /**
      * Example tick function
      */
-    public function evTick1s() {
-        // You could probably do something usefull here
+    public function evTick() {
+        // You could probably do something useful here
         // For example, you could use $this->server->broadcast() to send regular events
         // to all connected users
     }
 
+    /**
+     * Main loop
+     *
+     * @param bool $useExternalEventLoop
+     */
     public function run($useExternalEventLoop = false)
     {
         if (true === $useExternalEventLoop) {
@@ -238,12 +271,15 @@ class Server
         if (true === $useExternalEventLoop) {
             // Main advantage of external event loop : you can manage other events
             // Example :
-            $tick = new \EvTimer(0, 1, [$this, 'evTick1s']);
+            new \EvTimer(0, 1, [$this, 'evTick']);
 
             \Ev::run();
         }
     }
 
+    /**
+     * Stop server
+     */
     public function stop()
     {
         $this->server->stop();
@@ -255,7 +291,8 @@ class Server
      * @param string $operation
      * @param array $data
      * @param string $time
-     * @return string JSON string
+     * @param bool $jsonEncode
+     * @return string|array JSON string or array
      */
     protected function buildMessage($operation, array $data = [], $time = null, $jsonEncode = true) {
         $time = null === $time ? microtime(true) : (int) $time;
@@ -273,7 +310,7 @@ class Server
      * @param string $message
      * @return string
      */
-    protected function formatMessage($message) {
+    protected function formatMessage($message): string {
         $parts = preg_split('#(?:(/quote|/code-?)|(/code-)([a-z0-9]+))\s+#ui', $message, null, PREG_SPLIT_DELIM_CAPTURE|PREG_SPLIT_NO_EMPTY);
         $context  = null;
         $message  = '';
@@ -308,8 +345,8 @@ class Server
                         default:
                             $part = strip_tags($part);
                             $part = strtr($part, $this->smileys);
-                            $part = $this->replaceColors($part, true);
-                            $part = $this->replaceLinks($part, true);
+                            $part = $this->replaceColors($part);
+                            $part = $this->replaceLinks($part);
                     }
                     $message .= $part;
                     break;
@@ -329,7 +366,7 @@ class Server
      * @param string $str
      * @return string
      */
-    protected function escape($str) {
+    protected function escape($str): string {
         return htmlspecialchars($str, ENT_HTML5, 'UTF-8');
     }
 
@@ -341,7 +378,7 @@ class Server
      * @param string $language
      * @return string
      */
-    protected function highlight($str, $language) {
+    protected function highlight($str, $language): string {
         if ('php' === $language) {
             if (false === strpos($str, '<?php') && false === strpos($str, '<?=')) {
                 $str = "<?php\n" . $str;
@@ -356,9 +393,9 @@ class Server
      * Detect and replace link in $str
      *
      * @param string $str
-     * @param bool $displayImages If true, images will be displayed
+     * @return string
      */
-    protected function replaceLinks($str) {
+    protected function replaceLinks($str): string {
         $cb = function ($matches) {
             $url = $matches[0];
 
@@ -369,7 +406,7 @@ class Server
 
             $url = $this->escape($url);
             $isImage = null;
-            // Detect image from extention
+            // Detect image from extension
             $ext = explode('?', $url, 2)[0];
             $ext = explode('.', $ext);
             $ext = array_pop($ext);
@@ -386,9 +423,9 @@ class Server
                     CURLOPT_HEADER         => true,
                     CURLOPT_RETURNTRANSFER => true
                 ]);
-                $res = curl_exec($ch);
+                curl_exec($ch);
                 $content = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-                if (in_array($ext, ['image/jpg', 'image/gif', 'image/png'], true)) {
+                if (in_array($content, ['image/jpg', 'image/gif', 'image/png'], true)) {
                     $isImage = true;
                 }
             }
@@ -407,11 +444,16 @@ class Server
      * @param string $str
      * @return string
      */
-    protected function replaceColors($str) {
+    protected function replaceColors($str): string {
         return preg_replace('@#([A-F0-9]{6}|[A-F0-9]{3})@ui', '&num;\\1<span class="color" style="background:\\0"></span>', $str);
     }
 
-    public function getWsServer()
+    /**
+     * Return WebSocket server
+     *
+     * @return \WebSocket\Server
+     */
+    public function getWsServer(): \WebSocket\Server
     {
         return $this->server;
     }

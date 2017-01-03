@@ -50,21 +50,21 @@ class Server {
     /**
      * Use external event loop
      *
-     * @param \WebSocket\InterfaceEventLoop $ev
+     * @param \WebSocket\EventLoopInterface $ev
      * @return bool True if event handled by library
      */
-    public function setEventLoop(\WebSocket\EventLoopInterface $ev) {}
+    public function setEventLoop(EventLoopInterface $ev) {}
 
     /**
      * Register callbacks for event-loop
      *
-     * @param socket $fd
-     * @param int $revents
+     * @param resource $fd
+     * @param int $rEvents
      */
-    public function serviceFd($fd, $revents) {}
+    public function serviceFd($fd, $rEvents) {}
 
     /**
-     * Launch websocket server
+     * Launch WebSocket server
      */
     public function run() {}
 

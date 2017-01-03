@@ -1,9 +1,11 @@
-## Eclipse files
+## IDE files
 .buildpath
 .project
 .settings
 .cproject
 .deps
+.metadata
+.idea
 
 ## C files ZendExtension
 *.lo

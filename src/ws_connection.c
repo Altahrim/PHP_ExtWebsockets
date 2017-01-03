@@ -28,11 +28,11 @@
 
 /*--- Definitions ---*/
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_connection_sendText, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_connection_send, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, text, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_connection_sendJson, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_connection_sendAsJson, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, payload, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -46,8 +46,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ws_connection_disconnect, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 const zend_function_entry obj_ws_connection_funcs[] = {
-	PHP_ME(WS_Connection, sendText, arginfo_ws_connection_sendText, ZEND_ACC_PUBLIC)
-	PHP_ME(WS_Connection, sendJson, arginfo_ws_connection_sendJson, ZEND_ACC_PUBLIC)
+	PHP_ME(WS_Connection, send, arginfo_ws_connection_send, ZEND_ACC_PUBLIC)
+	PHP_ME(WS_Connection, sendAsJson, arginfo_ws_connection_sendAsJson, ZEND_ACC_PUBLIC)
 	PHP_ME(WS_Connection, isConnected, arginfo_ws_connection_is_connected, ZEND_ACC_PUBLIC)
 	PHP_ME(WS_Connection, getUid, arginfo_ws_connection_get_uid, ZEND_ACC_PUBLIC)
 	PHP_ME(WS_Connection, disconnect, arginfo_ws_connection_disconnect, ZEND_ACC_PUBLIC)
@@ -103,9 +103,9 @@ void ws_connection_free_object_storage_handler(ws_connection_obj *intern TSRMLS_
 
 /*--- Methods ---*/
 
-/* {{{ proto int|false WebSocket\Connection::sendText(string text)
-	Send a text to the client */
-PHP_METHOD(WS_Connection, sendText)
+/* {{{ proto int|false WebSocket\Connection::send(string text)
+	Send data to the client */
+PHP_METHOD(WS_Connection, send)
 {
 	ws_connection_obj *intern;
 	zend_string *text;
@@ -125,9 +125,9 @@ PHP_METHOD(WS_Connection, sendText)
 }
 /* }}} */
 
-/* {{{ proto int|false WebSocket\Connection::sendJson(mixed payload)
-	Send a JSON to the client */
-PHP_METHOD(WS_Connection, sendJson)
+/* {{{ proto int|false WebSocket\Connection::sendAsJson(mixed payload)
+	Send data to the client as JSON string */
+PHP_METHOD(WS_Connection, sendAsJson)
 {
 	ws_connection_obj *intern;
 	smart_str text = {0};
@@ -138,7 +138,6 @@ PHP_METHOD(WS_Connection, sendJson)
 		Z_PARAM_ZVAL(val);
 	ZEND_PARSE_PARAMETERS_END();
 
-	printf("Conn at %p send JSON\n", getThis());
 	intern = (ws_connection_obj *) Z_OBJ_P(getThis());
 	php_json_encode(&text, val, PHP_JSON_UNESCAPED_UNICODE|PHP_JSON_UNESCAPED_SLASHES);
 	n = php_ws_conn_write(intern, text.s);
